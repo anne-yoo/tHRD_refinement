@@ -149,7 +149,7 @@ ax.set_xlabel('')
 # ax.set_xticklabels(ax.get_xticklabels(),rotation=30)
 
 from matplotlib.patches import Patch
-legend_handles = [Patch(color=cmap[True], label='pre < post'),  
+legend_handles = [Patch(color=cmap[True], label='pre < pst'),  
                 Patch(color=cmap[False], label='pre > post')]  
 plt.legend(handles=legend_handles, ncol=2, bbox_to_anchor=[0.5, 1.02], loc='lower center', fontsize=8, handlelength=.8)
 plt.title("every isoform of BRIP1", fontsize =11, pad=40)

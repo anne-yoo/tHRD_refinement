@@ -10,7 +10,7 @@ from scipy.stats import ttest_ind
 from scipy.stats import ranksums
 from scipy.stats import kruskal
 # %%
-#####* DTU analysis with Kruskal-Wallis test #####
+#####* DSG analysis with Kruskal-Wallis test #####
 #^ transcript id - gene id library
 mstrg = pd.read_csv('/home/jiye/jiye/copycomparison/OC_transcriptome/annotation/mstrg2symbol.txt', sep='\t')
 ensembl = pd.read_csv('/home/jiye/jiye/copycomparison/OC_transcriptome/annotation/ensg2symbol.dict', sep='\t', header=None)
@@ -51,7 +51,7 @@ for k in range(7):
                 mw.iloc[i,0] = kruskal(list_pre, list_post)[1]
             d_psi = abs((list_post.mean() - list_pre.mean()))
             mw.iloc[i,1] = d_psi
-    con = (mw['pval']<0.01) & (mw['d_psi']>0.1)
+    con = (mw['pval']<0.01) & (mw['d_psi']>0.1) #####pval filtering#####
     filtered_mw = mw.loc[con,:]
 
     #* transcript id + gene id extracting
@@ -65,14 +65,21 @@ for k in range(7):
     finaldf['event'] = events[k]
 
     mergedmw = pd.concat([mergedmw, finaldf])
+
+
 #%%
 ##^ DTU gene list
 forgenelist = mergedmw[['pval','d_psi','gene id','mstrg gene symbol','event','transcript id']]
 forgenelist = forgenelist.dropna()
 dtu_genelist = pd.DataFrame(set(forgenelist['mstrg gene symbol']))
 dtu_genelist.columns = ['dtu_genelist']
-# %%
+
+#%%
+#* save DSG gene list
 # dtu_genelist.to_csv('/home/jiye/jiye/copycomparison/OC_transcriptome/splicing/suppa2/dtu_genelist.csv', index=False)
+
+
+
 # %%
 ##^ DTU gene -> psi dataframe for heatmap!
 mergedpsi = pd.DataFrame()
