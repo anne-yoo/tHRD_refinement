@@ -131,6 +131,9 @@ for i in range(prepost.shape[0]):
     if prepost.iloc[i,0]>prepost.iloc[i,1]:
         prepost.iloc[i,0] = 1
         prepost.iloc[i,1] = 0
+    elif prepost.iloc[i,0]==prepost.iloc[i,1]:
+        prepost.iloc[i,0] = 2
+        prepost.iloc[i,1] = 2
     else:
         prepost.iloc[i,0] = 0
         prepost.iloc[i,1] = 1
@@ -141,16 +144,20 @@ prepost_pivot = prepost_df.pivot(index='gene_ENST', columns='sample')['TU_post']
 
 prepost_pivot.index.name = None
 
+#%%
+finaldf = prepost_pivot.loc[['ENST00000259008.2-BRIP1','ENST00000577598.1-BRIP1','MSTRG.49834.288-BRIP1','MSTRG.49834.293-BRIP1']]
+#%%
+
 sns.set(rc = {'figure.figsize':(5,8)})
 sns.set_style('whitegrid')
-cmap=['#EEDAD5','#F25027']
-ax=sns.heatmap(prepost_pivot, cmap=['#EEDAD5','#F25027'], cbar=False,  linewidth=0.005, annot_kws={'rotation':180})
+cmap=['#869CC9','#F25027','#EDECEC']
+ax=sns.heatmap(finaldf, cmap=cmap, cbar=False,  linewidth=0.005, annot_kws={'rotation':90})
 ax.set_xlabel('')
 # ax.set_xticklabels(ax.get_xticklabels(),rotation=30)
 
 from matplotlib.patches import Patch
-legend_handles = [Patch(color=cmap[True], label='pre < pst'),  
-                Patch(color=cmap[False], label='pre > post')]  
+legend_handles = [Patch(color=cmap[1], label='pre < post'),  
+                Patch(color=cmap[0], label='pre > post'),]  
 plt.legend(handles=legend_handles, ncol=2, bbox_to_anchor=[0.5, 1.02], loc='lower center', fontsize=8, handlelength=.8)
 plt.title("every isoform of BRIP1", fontsize =11, pad=40)
 

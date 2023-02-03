@@ -49,11 +49,11 @@ for k in range(7):
             list_post = post.iloc[i,:post.shape[1]-1]
             if set(list_pre) != set(list_post):
                 mw.iloc[i,0] = kruskal(list_pre, list_post)[1]
-            d_psi = abs((list_post.mean() - list_pre.mean()))
+            d_psi = list_post.mean() - list_pre.mean()
             mw.iloc[i,1] = d_psi
-    con = (mw['pval']<0.01) & (mw['d_psi']>0.1) #####pval filtering#####
-    filtered_mw = mw.loc[con,:]
-
+    # con = (mw['pval']<0.01) & (mw['d_psi']>0.1) #####pval filtering#####
+    # filtered_mw = mw.loc[con,:]
+    filtered_mw = mw
     #* transcript id + gene id extracting
     filtered_mw['gene id'] = filtered_mw.index.str.split(";",1).str[0]
     filtered_mw['transcript id'] = filtered_mw.index
@@ -66,17 +66,20 @@ for k in range(7):
 
     mergedmw = pd.concat([mergedmw, finaldf])
 
-
+#%%
 #%%
 ##^ DTU gene list
 forgenelist = mergedmw[['pval','d_psi','gene id','mstrg gene symbol','event','transcript id']]
 forgenelist = forgenelist.dropna()
+forgenelist = forgenelist[forgenelist['pval']!=5]
+forgenelist = forgenelist[forgenelist['mstrg gene symbol']!='-']
 dtu_genelist = pd.DataFrame(set(forgenelist['mstrg gene symbol']))
 dtu_genelist.columns = ['dtu_genelist']
 
 #%%
 #* save DSG gene list
 # dtu_genelist.to_csv('/home/jiye/jiye/copycomparison/OC_transcriptome/splicing/suppa2/dtu_genelist.csv', index=False)
+forgenelist.to_csv('/home/jiye/jiye/copycomparison/OC_transcriptome/splicing/suppa2/DSGinfo_beforefiltering.csv', index=False, sep='\t')
 
 
 
