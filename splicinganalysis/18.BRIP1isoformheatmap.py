@@ -103,7 +103,7 @@ cl_final = cl_final[cl_final['group']=='Responder']
 ##^ boxplots
 sns.set(rc = {'figure.figsize':(12,8)})
 sns.set_style('whitegrid')
-sns.boxplot(data=cl_final, x="gene_ENST", y="TU", hue="pre/post", showfliers = False, palette={'pre':'#4998FF', 'post':'#FF4949'})
+sns.boxplot(data=cl_final, x="gene_ENST", y="TU", hue="pre/post", showfliers = False, palette={'pre':'#EDDFDF', 'post':'#FF4949'})
 plt.title('<pre vs. post major TU>', size=11)
 plt.xticks(rotation=0, size=9)
 plt.ylabel('Transcript Usage')
@@ -145,21 +145,46 @@ prepost_pivot = prepost_df.pivot(index='gene_ENST', columns='sample')['TU_post']
 prepost_pivot.index.name = None
 
 #%%
-finaldf = prepost_pivot.loc[['ENST00000259008.2-BRIP1','ENST00000577598.1-BRIP1','MSTRG.49834.288-BRIP1','MSTRG.49834.293-BRIP1']]
-#%%
+majordf = prepost_pivot.loc[['ENST00000259008.2-BRIP1']]
+minordf = prepost_pivot.loc[['ENST00000577598.1-BRIP1','MSTRG.49834.288-BRIP1','MSTRG.49834.293-BRIP1']]
+minordf.index = minordf.index.str.split('-',1).str[0]
+majordf.index = majordf.index.str.split('-',1).str[0]
 
-sns.set(rc = {'figure.figsize':(5,8)})
+#%%
+##^minor
+sns.set(rc = {'figure.figsize':(7,3)})
 sns.set_style('whitegrid')
-cmap=['#869CC9','#F25027','#EDECEC']
-ax=sns.heatmap(finaldf, cmap=cmap, cbar=False,  linewidth=0.005, annot_kws={'rotation':90})
+cmap=['#2D2DE9','#EFEFEF','#CDCDCD']
+ax=sns.heatmap(minordf, cmap=cmap, cbar=False,  linewidth=0.005, annot_kws={'rotation':270})
 ax.set_xlabel('')
-# ax.set_xticklabels(ax.get_xticklabels(),rotation=30)
+ax.set_xticklabels(ax.get_xmajorticklabels(), fontsize = 9)
+ax.set_yticklabels(ax.get_ymajorticklabels(), fontsize = 13)
+ax.set_xticklabels(ax.get_xticklabels(),rotation=30)
 
 from matplotlib.patches import Patch
 legend_handles = [Patch(color=cmap[1], label='pre < post'),  
                 Patch(color=cmap[0], label='pre > post'),]  
 plt.legend(handles=legend_handles, ncol=2, bbox_to_anchor=[0.5, 1.02], loc='lower center', fontsize=8, handlelength=.8)
-plt.title("every isoform of BRIP1", fontsize =11, pad=40)
+
+plt.tight_layout()
+plt.show()
+# %%
+#%%
+##^major
+sns.set(rc = {'figure.figsize':(7,1)})
+sns.set_style('whitegrid')
+cmap=['#EFEFEF','#EFEFEF','#E43D27']
+ax=sns.heatmap(majordf, cmap=cmap, cbar=False,  linewidth=0.005, annot_kws={'rotation':270})
+ax.set_xlabel('')
+ax.set_xticklabels(ax.get_xmajorticklabels(), fontsize = 9)
+ax.set_yticklabels(ax.get_ymajorticklabels(), fontsize = 14)
+ax.set_xticklabels(ax.get_xticklabels(),rotation=30)
+ax.set_yticklabels(ax.get_yticklabels(),rotation=0)
+
+from matplotlib.patches import Patch
+legend_handles = [Patch(color=cmap[2], label='pre < post'),  
+                Patch(color=cmap[0], label='pre > post'),]  
+plt.legend(handles=legend_handles, ncol=2, bbox_to_anchor=[0.5, 1.02], loc='lower center', fontsize=8, handlelength=.8)
 
 plt.tight_layout()
 plt.show()

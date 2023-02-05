@@ -221,7 +221,12 @@ except:
 tpm = tpm.drop(['target_gene'],axis=1)
 tpm['gene_ENST'] = tpm.index
 
-briptpm = tpm[(tpm['gene_ENST']=='MSTRG.49834.283-BRIP1') | (tpm['gene_ENST']=='MSTRG.49834.288-BRIP1') | (tpm['gene_ENST']=='ENST00000577598.1-BRIP1')| (tpm['gene_ENST']=='ENST00000259008.2-BRIP1')]
+#%%
+
+briptpm = tpm
+briptpm['gene'] = briptpm['gene_ENST'].str.split('-',1).str[1]
+briptpm = briptpm[briptpm['gene']=='BRIP1']
+# briptpm = tpm[(tpm['gene_ENST']=='MSTRG.49834.293-BRIP1') | (tpm['gene_ENST']=='MSTRG.49834.288-BRIP1') | (tpm['gene_ENST']=='ENST00000577598.1-BRIP1')| (tpm['gene_ENST']=='ENST00000259008.2-BRIP1')]
 # briptpm = tpm[(tpm['gene_ENST']=='MSTRG.49834.283-BRIP1')  | (tpm['gene_ENST']=='ENST00000577598.1-BRIP1')| (tpm['gene_ENST']=='ENST00000259008.2-BRIP1')] # exclude 288
 
 samples = briptpm.columns
@@ -272,11 +277,11 @@ cl_final = pd.merge(final_stacked, clinical, how='inner', on='sample')
 cl_final['group'] = cl_final['group'].replace([1], 'Responder')
 cl_final['group'] = cl_final['group'].replace([0], 'Non-Responder')
 
-
+#%%
 
 #^ mungtaengi box plot
 cl_final['gene_ENST'] = cl_final['gene_ENST'].str[:-6]
-orders = ['ENST00000259008.2', 'ENST00000577598.1', 'MSTRG.49834.283','MSTRG.49834.288']
+# orders = ['ENST00000259008.2', 'ENST00000577598.1', 'MSTRG.49834.293','MSTRG.49834.288']
 # orders = ['ENST00000259008.2', 'ENST00000577598.1', 'MSTRG.49834.283']
 
 sns.set(rc = {'figure.figsize':(8,4)})
@@ -289,7 +294,7 @@ plt.show()
 #^ mungtaengi box plot: only responders
 sns.set(rc = {'figure.figsize':(8,4)})
 sns.set_style('whitegrid')
-sns.boxplot(data=cl_final[cl_final['group']=='Responder'], x="gene_ENST", y="log2(TPM+1)", hue="pre/post", showfliers = False, order=orders)
+sns.boxplot(data=cl_final[cl_final['group']=='Responder'], x="gene_ENST", y="log2(TPM+1)", hue="pre/post", showfliers = True, order=orders)
 plt.suptitle('<pre vs. post BRIP1 TPM: Responder>', size=11)
 plt.xticks(rotation=0, size=9)
 plt.show()

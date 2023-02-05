@@ -28,10 +28,10 @@ brip.to_csv('/home/jiye/jiye/copycomparison/OC_transcriptome/annotation/ggtransc
 
 #################* for Venn Diagram ################
 dsg = pd.read_csv('/home/hyeongu/DATA5/hyeongu/YUHS_transfer_data/data/readcount/final_data/DSG_DEG_comp/DSG_p5.txt', sep='\t')
-deg = pd.read_csv('/home/hyeongu/DATA5/hyeongu/YUHS_transfer_data/data/readcount/final_data/DSG_DEG_comp/DEG_p5.txt', sep='\t')
+deg = pd.read_csv('/home/jiye/jiye/copycomparison/OC_transcriptome/splicing/DESeq2/DESeq2_deg_genelist.csv', sep='\t')
 hrgene = pd.read_csv('/home/jiye/jiye/copycomparison/OC_transcriptome/splicing/otherdata/HR_genes.txt', header=None)
 # %%
-deglist = set(deg['1'])
+deglist = set(deg['deg_genelist'])
 dsglist = set(dsg['mstrg gene symbol'])
 hrgene = set(hrgene[0])
 
@@ -76,10 +76,9 @@ plt.show()
 
 # %%
 ####* stacked barplot
-f_dsg = dsg[dsg['pval']<0.05]
-f_dsg = f_dsg[f_dsg['d_psi'].abs()>0.05]
-#%%
-o_dsg = pd.read_csv('/home/jiye/jiye/copycomparison/OC_transcriptome/splicing/suppa2/DSGinfo_beforefiltering.csv',sep='\t')
+dsg = pd.read_csv('/home/hyeongu/DATA5/hyeongu/YUHS_transfer_data/data/readcount/final_data/DSG_DEG_comp/DSG_p5.txt', sep='\t')
+
+o_dsg = pd.read_csv('/home/jiye/jiye/copycomparison/OC_transcriptome/splicing/suppa2/DSGinfo_beforefiltering.csv',sep='\t') #original psi file
 # %%
 df = pd.DataFrame({'A3':[12433,361],'A5':[8439,295],'RI':[11519,458],'AF':[8083,367],'SE':[17194,475],'AL':[3608,257],'MX':[542,26]}, index=['whole','significant'])
 sns.set(style='white')
