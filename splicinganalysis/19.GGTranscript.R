@@ -83,7 +83,8 @@ brip1_rescaled_exons %>%
     xend = end,
     y = transcript_name
   )) +
-  geom_range() +
+  geom_range() +theme_bw()+
+  
   geom_intron(
     data = brip1_rescaled_introns,
     arrow.min.intron.length = 300
@@ -91,6 +92,6 @@ brip1_rescaled_exons %>%
   geom_range(
     data = brip1_rescaled_diffs,
     aes(fill = diff_type),
-    alpha = 0.2
+    alpha = 0.7
   )
 
