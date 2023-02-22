@@ -30,6 +30,7 @@ brip1_exons %>%
 # extract exons
 brip1_exons <- brip1 %>% dplyr::filter(type == "exon")
 
+
 brip1_rescaled <- shorten_gaps(
   exons = brip1_exons, 
   introns = to_intron(brip1_exons, "transcript_name"), 
@@ -41,6 +42,7 @@ brip1_rescaled <- shorten_gaps(
 brip1_rescaled_exons <- brip1_rescaled %>% dplyr::filter(type == "exon") 
 brip1_rescaled_introns <- brip1_rescaled %>% dplyr::filter(type == "intron") 
 
+
 brip1_rescaled_exons %>% 
   ggplot(aes(
     xstart = start,
@@ -48,7 +50,7 @@ brip1_rescaled_exons %>%
     y = transcript_name
   )) + theme_bw()+
   geom_range(
-    aes(fill = transcript_biotype)
+    aes(fill = transcript_biotype, alpha=0.5)
   ) +
   geom_intron(
     data = brip1_rescaled_introns,
@@ -87,7 +89,8 @@ brip1_rescaled_exons %>%
   
   geom_intron(
     data = brip1_rescaled_introns,
-    arrow.min.intron.length = 300
+    arrow.min.intron.length = 300,
+    aes(strand=strand)
   ) +
   geom_range(
     data = brip1_rescaled_diffs,
