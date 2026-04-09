@@ -13,7 +13,40 @@ import re
 import random
 
 # %%
-tpm = pd.read_csv('/home/hyeongu/DATA5/hyeongu/YUHS_transfer_data/data/pre_post_TU/final_data/230106_new_final_pre_post_samples_TU_input.txt', sep='\t', index_col=0)
+#tpm = pd.read_csv('/home/hyeongu/DATA5/hyeongu/YUHS_transfer_data/data/pre_post_TU/final_data/230106_new_final_pre_post_samples_TU_input.txt', sep='\t', index_col=0)
+# info = pd.read_csv('/home/jiye/jiye/copycomparison/gDUTresearch/GEN_FINALDATA/SEV_prepost_80_clinicalinfo.txt', sep='\t')
+# info = info[info['purpose']=='maintenance']
+# arlist = info[info['response']==1]['sample_full'].to_list()
+# irlist = info[info['response']==0]['sample_full'].to_list()
+
+transexp = pd.read_csv('/home/jiye/jiye/copycomparison/GENCODEquant/POLO_hg38/merged_83_transcript_TPM.txt', sep='\t', index_col=0)
+val_clin = pd.read_csv('/home/jiye/jiye/copycomparison/gDUTresearch/FINALDATA/2025clinical/83_POLO_clinicalinfo.txt', sep='\t', index_col=0)
+res_list = val_clin[(val_clin['PFS']>=730)].index.to_list()
+nonres_list = val_clin[(val_clin['recur']==1)&(val_clin['PFS']<365)].index.to_list()
+
+res_tpm = transexp.loc[:, transexp.columns.isin(res_list)]
+nonres_tpm = transexp.loc[:, transexp.columns.isin(nonres_list)]
+
+
+
+
+#%%
+tpm = pd.read_csv('/home/jiye/jiye/copycomparison/GENCODEquant/SEV_prepost/merged_cov5_80_transcript_TPM.txt', sep='\t', index_col=0)
+#minimum_samples = int(tpm.shape[1] * 0.2) ########## 20% threshold
+#tpm = tpm[tpm.apply(lambda x: (x != 0).sum(), axis=1) >= minimum_samples]
+
+tpm = tpm.loc[:,tpm.columns.isin(arlist)]
+normal = tpm.iloc[:,0::2]
+tumor = tpm.iloc[:,1::2]
+normal.index = normal.index.str.split("-",1).str[0]
+tumor.index = tumor.index.str.split("-",1).str[0]
+
+#normal = normal.drop(['gene_name'], axis=1)
+#tumor = tumor.drop(['gene_name'], axis=1)
+
+normal.to_csv('/home/jiye/jiye/copycomparison/GENCODEquant/SEV_prepost/suppaoutput/onlymaintenance/AR/AR_post_TPM.txt', sep='\t', index=True)
+tumor.to_csv('/home/jiye/jiye/copycomparison/GENCODEquant/SEV_prepost/suppaoutput/onlymaintenance/AR/AR_pre_TPM.txt', sep='\t', index=True)
+
 #%% 
 #^ change sample id (atD / bfD)
 tpm = tpm.drop(['target_gene'], axis=1)

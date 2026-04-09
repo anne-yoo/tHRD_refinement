@@ -7,7 +7,7 @@ library("ggtranscript")
 library("ggplot2")
 library("rtracklayer")
 
-brip1 = read.csv('/home/jiye/jiye/copycomparison/OC_transcriptome/annotation/brip1only4_ggtranscriptinput.txt', sep='\t',header=TRUE)
+brip1 = read.csv('/home/jiye/jiye/copycomparison/OC_transcriptome/annotation/gffread/BRIP1_only2.gtf', sep='\t',header=TRUE)
 
 brip1 <- brip1 %>% dplyr::filter(strand == "-")
 brip1_exons <- brip1 %>% dplyr::filter(type == "exon")

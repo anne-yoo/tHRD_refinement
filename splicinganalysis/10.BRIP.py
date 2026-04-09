@@ -108,7 +108,7 @@ for k in range(len(sl)):
     tudf = pd.concat([pre,post], axis=1)
     tudf.columns = ['pre','post']
     tudf['gene_id'] = tudf.index.str.split("-",1).str[1]
-    brip_1 = tudf[tudf['gene_id']=='BRIP1']
+    brip_1 = tudf[tudf['gene_id']=='ASCC3'] ########^ change gene name 
     briptu.iloc[k,1] = brip_1.iloc[0,0]
     briptu.iloc[k,2] = brip_1.iloc[0,1]
 
@@ -177,10 +177,22 @@ finaldf = pd.concat([predf,postdf])
 
 finaldf['group'] = finaldf['group'].replace([1], 'Responder')
 finaldf['group'] = finaldf['group'].replace([0], 'Non-Responder')
-sns.set_style('whitegrid')
-sns.boxplot(data=finaldf, x="group", y="BRIP major TU", hue="pre/post")
-plt.suptitle('<pre vs. post BRIP1 major TU>', y=1.03, size=11)
 
+#%%
+sns.set(rc = {'figure.figsize':(4,6)})
+sns.set_style('whitegrid')
+col = {"post":"#FF4949", "pre":"#4998FF"}
+sns.boxplot(data=finaldf[finaldf['group']=='Responder'], x="group", y="BRIP major TU", hue="pre/post", palette=col)
+plt.ylabel('ASCC3 major TU')
+
+plt.show()
+
+#%%
+#^ catplot only responders
+sns.set(rc = {'figure.figsize':(6,8)})
+sns.set_style('whitegrid')
+sns.catplot(x="pre/post", y="BRIP major TU", hue="sample", kind="point", data=finaldf[finaldf['group']=='Responder'], palette='tab10', height = 5, aspect = 0.8)
+plt.ylabel('ASCC3 major TU')
 plt.show()
 
 

@@ -1,0 +1,73 @@
+#### commamnds for SUPPA2 ####
+##version: SUPPAv2.3
+##path: /home/jiye/jiye/copycomparison/gDUTresearch/suppa2
+(tHRD)
+python3.7 -m pip install scipy==1.2 --upgrade
+suppa.py generateEvents -i /home/jiye/jiye/copycomparison/OC_transcriptome/annotation/gencode.v19.annotation.gtf -o suppa -f ioe -e SE SS MX RI FL -b V
+~/defense/2.DUTanalysis.py + vim으로 맨 첫번째 샘플명 있는 row의 앞에 탭 지워줘야함
+for f in *10.ioe; do suppa.py psiPerEvent -i $f -e pre_TPM.txt -o pre-$f & if (( $(jobs | wc -l) >5)); then wait -n; fi; done
+for f in *10.ioe; do suppa.py psiPerEvent -i $f -e post_TPM.txt -o post-$f & if (( $(jobs | wc -l) >5)); then wait -n; fi; done
+
+-> strict mode
+for f in *strict.ioe; do suppa.py psiPerEvent -i $f -e pre_TPM.txt -o pre-$f & if (( $(jobs | wc -l) >5)); then wait -n; fi; done
+for f in *strict.ioe; do suppa.py psiPerEvent -i $f -e post_TPM.txt -o post-$f & if (( $(jobs | wc -l) >5)); then wait -n; fi; done
+
+
+#### commands for rMATs ####
+##version: rmats  4.1.2    bioconda (tHRD)
+##commands
+rmats.py --b1 /home/jiye/jiye/copycomparison/gDUTresearch/rMATS/b1.txt --b2 /home/jiye/jiye/copycomparison/gDUTresearch/rMATS/b2.txt --gtf /home/jiye/jiye/copycomparison/OC_transcriptome/annotation/gencode.v19.annotation.gtf --paired-stats -t paired --readLength 50 --nthread 256 --variable-read-length --od /home/jiye/jiye/copycomparison/gDUTresearch/rMATS/output_gencode --tmp /home/jiye/jiye/copycomparison/gDUTresearch/rMATS/tmp_gencode
+
+##whole pre vs. post (paired-stats): /home/jiye/jiye/copycomparison/gDUTresearch/rMATS/output_gencode
+##R pre vs. R post (paired-stats): /home/jiye/jiye/copycomparison/gDUTresearch/rMATS/ACQUIRED
+##R pre vs. NR pre (no paired-stats): /home/jiye/jiye/copycomparison/gDUTresearch/rMATS/INNATE
+##R pre vs. NR pre (only for 1L patients): /home/jiye/jiye/copycomparison/gDUTresearch/rMATS/INNATE_1L
+
+#### commands for consensusOV ####
+##version: consensusOV R 1.16.0
+##code: ~/copycomparisoncode/gDUTmodel/19.consensusOV.R
+
+
+#### heatmap ####
+## method: ward, metric: euclidean (sns.clustermap)
+## defense/2.DUTanalysis.python3
+
+
+#### Gene group / DUT group venndiagram (before FDR selection) ####
+## defense/2.DUTanalysis.py
+
+
+#### PARPi-derived DUT ####
+## gDUTmodel/21.pairedDEGDUT.py
+## gDUTmodel/5.DUT_GObubbleplot.py
+
+
+#### Baseline DUT ####
+## gDUTmodel/26.baselineDUT.py
+
+
+#### PARPi-derived vs. Baseline DUT venndiagram + functionality boxplot ####
+## defense/3.IR_DUT.py
+
+
+#### Manual DSG (with psi values) + splicing event counting ####
+## defense/4.splicing.py
+
+#### Result1: DSG vs. DEG vs. DET ####
+## defense/2.DUTanalysis.py
+## 이거는 Wilcoxon으로 안하고 MW로 했음. TPM이라서 뭔가 paired라고 보기에 에러가 있을거 같기도 ..... -> 근데 더 안나와서 그냥 Wilcoxon으로 감 ㅎㅎㅎㅎ
+## MW: 202312_analysis/ ~ 
+DEG: pval<0.05 (n=2105)
+DET: pval<0.01 (n=5174) 
+DSG: rMATs pval<0.001 & abs(d_psi)>0.01 (n=5014)
+
+## Wilcoxon: 202312_analysis/ ~ 
+DEG: pval<0.01 (n=1086)
+DET: pval<0.01 (n=3981) 
+DSG: rMATs pval<0.001 & abs(d_psi)>0.01 (n=3987)
+
+
+## validation cohort info
+NR:41 
+R: 89
+

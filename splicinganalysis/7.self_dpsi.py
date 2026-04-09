@@ -19,8 +19,8 @@ ensembl.columns = ['gene id', 'ensembl gene symbol']
 # %%
 events=['A3','A5','AF','AL','MX','RI','SE'] #A3, A5
 
-pre = pd.read_csv('/home/jiye/jiye/copycomparison/OC_transcriptome/suppa2/pre-suppa_'+events[2]+'_variable_10.ioe.psi', sep='\t', index_col=0)
-post = pd.read_csv('/home/jiye/jiye/copycomparison/OC_transcriptome/suppa2/post-suppa_'+events[2]+'_variable_10.ioe.psi', sep='\t', index_col=0)
+pre = pd.read_csv('/home/jiye/jiye/copycomparison/GENCODEquant/POLO_hg38/SUPPA/res-suppaevent_'+events[2]+'_variable_10.ioe.psi', sep='\t', index_col=0)
+post = pd.read_csv('/home/jiye/jiye/copycomparison/GENCODEquant/SEV_prepost/suppaoutput/AR/AR_post-suppaevent_'+events[2]+'_variable_10.ioe.psi', sep='\t', index_col=0)
 
 
 
@@ -33,11 +33,12 @@ mw = pd.DataFrame()
 mw.index = pre.index
 mw['pval'] = 5
 #%%
+events=['A3','A5','AF','AL','MX','RI','SE'] #A3, A5
 
 mergedmw = pd.DataFrame()
 for k in range(7):
-    pre = pd.read_csv('/home/jiye/jiye/copycomparison/OC_transcriptome/suppa2/pre-suppa_'+events[k]+'_variable_10.ioe.psi', sep='\t', index_col=0)
-    post = pd.read_csv('/home/jiye/jiye/copycomparison/OC_transcriptome/suppa2/post-suppa_'+events[k]+'_variable_10.ioe.psi', sep='\t', index_col=0)
+    pre = pd.read_csv('/home/jiye/jiye/copycomparison/GENCODEquant/POLO_hg38/SUPPA/res-suppaevent_'+events[k]+'_variable_10.ioe.psi', sep='\t', index_col=0)
+    post = pd.read_csv('/home/jiye/jiye/copycomparison/GENCODEquant/POLO_hg38/SUPPA/nonres-suppaevent_'+events[k]+'_variable_10.ioe.psi', sep='\t', index_col=0)
     pre['null_count'] = pre.isnull().sum(axis=1)
     post['null_count'] = post.isnull().sum(axis=1)
     
@@ -52,29 +53,34 @@ for k in range(7):
             list_post = post.iloc[i,:post.shape[1]-1]
             if set(list_pre) != set(list_post):
                 mw.iloc[i,0] = mannwhitneyu(list_pre, list_post, alternative='two-sided')[1]
-            d_psi = abs((list_post.mean() - list_pre.mean()))
+            d_psi = list_post.mean() - list_pre.mean()
             mw.iloc[i,1] = d_psi
-    con = (mw['pval']<0.05) & (mw['d_psi']>=0.1)
+    con = (mw['pval']<0.05) & (np.abs(mw['d_psi'])>=0.1)
     filtered_mw = mw.loc[con,:]
 
     #* transcript id + gene id extracting
-    filtered_mw['gene id'] = filtered_mw.index.str.split(";",1).str[0]
-    filtered_mw['transcript id'] = filtered_mw.index
+    # filtered_mw['gene id'] = filtered_mw.index.str.split(";",1).str[0]
+    # filtered_mw['transcript id'] = filtered_mw.index
 
-    mw_mstrg = pd.merge(filtered_mw, mstrg, how='left', left_on = 'gene id', right_on='gene id')
-    mw_mstrg = mw_mstrg.drop_duplicates(subset=['pval','d_psi','gene id','transcript id'])
-    mw_ensembl = pd.merge(mw_mstrg, ensembl, how='left', left_on = 'gene id', right_on = 'gene id')
-    finaldf = mw_ensembl.drop_duplicates(subset=['pval','d_psi','gene id','transcript id'])
-    finaldf['event'] = events[k]
+    filtered_mw['event'] = events[k]
+    mergedmw = pd.concat([mergedmw, filtered_mw])
+    # mw_mstrg = pd.merge(filtered_mw, mstrg, how='left', left_on = 'gene id', right_on='gene id')
+    # mw_mstrg = mw_mstrg.drop_duplicates(subset=['pval','d_psi','gene id','transcript id'])
+    # mw_ensembl = pd.merge(mw_mstrg, ensembl, how='left', left_on = 'gene id', right_on = 'gene id')
+    # finaldf = mw_ensembl.drop_duplicates(subset=['pval','d_psi','gene id','transcript id'])
+    # finaldf['event'] = events[k]
 
-    mergedmw = pd.concat([mergedmw, finaldf])
+    #mergedmw = pd.concat([mergedmw, finaldf])
 
 
-
+#%%
+mergedmw.to_csv('/home/jiye/jiye/copycomparison/GENCODEquant/POLO_hg38/SUPPA/MW_psi_7events.txt', index=False, sep='\t')
 
 
 # %%
-mergedmw.to_csv('/home/jiye/jiye/copycomparison/OC_transcriptome/splicing/MW_psi_7events.txt', index=False, sep='\t')
+mergedmw = mergedmw[['pval','d_psi','gene id','transcript id','event']]
+mergedmw.columns = ['pval','d_psi','gene_id','event_id','event']
+mergedmw.to_csv('/home/jiye/jiye/copycomparison/GENCODEquant/SEV_prepost/suppaoutput/onlymaintenance/AR/MW_psi_7events.txt', index=False, sep='\t')
 
 
 # %%

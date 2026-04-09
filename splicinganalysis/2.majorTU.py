@@ -8,19 +8,39 @@ from scipy.stats import pearsonr
 import random
 from scipy.stats import ttest_ind
 
-# %%
-#^ feature gene list
-features = pd.read_csv("/home/hyeongu/DATA5/hyeongu/FFPE_align_files/GC_server/GC_TU/merged_TU/whole_TU/XGBoost/response_group.txt", header=None, index_col=0)
-features = features.iloc[1:,:]
-features.reset_index(inplace=True)
-features.columns = ['gene_ENST']
-features['gene'] = features['gene_ENST'].str.split('-',1).str[1]
+#%%
+#^ DNA repair-related gDUTs
+DIR="/home/hyeongu/DATA5/hyeongu/YUHS_transfer_data/data/pre_post_TU/final_data/MW_result/"
+used_term = pd.read_csv(
+                            DIR+"MW_RES_INT_stable/selected_term_FDR10.txt",
+                            sep="\t", header=None
+                            )
+genelist = used_term[[8]]
+lists = []
+for i in range(genelist.shape[0]):
+    tmp = genelist.iloc[i,:]
+    join = tmp.str.split(";").to_list()
+    lists = lists + join
 
-genelist = features[['gene']].drop_duplicates()
+from itertools import chain
+flatten_list = list(chain.from_iterable(lists))
+finalgenelist = list(set(flatten_list))
+genelist = pd.DataFrame(finalgenelist)
+genelist.columns = ['gene']
+# %%
+# #^ feature gene list
+# features = pd.read_csv("/home/hyeongu/DATA5/hyeongu/FFPE_align_files/GC_server/GC_TU/merged_TU/whole_TU/XGBoost/response_group.txt", header=None, index_col=0)
+# features = features.iloc[1:,:]
+# features.reset_index(inplace=True)
+# features.columns = ['gene_ENST']
+# features['gene'] = features['gene_ENST'].str.split('-',1).str[1]
+
+# genelist = features[['gene']].drop_duplicates()
 
 # %%
 #^ tu data download
-tu = pd.read_csv("/home/hyeongu/DATA5/hyeongu/YUHS_transfer_data/data/pre_post_TU/final_data/major_prop.txt", sep='\t')
+tu = pd.read_csv("/home/hyeongu/DATA5/hyeongu/YUHS_transfer_data/data/pre_post_TU/final_data/230105_major_prop.txt", sep='\t') #new major TU with new sample 068
+#tu = pd.read_csv("/home/hyeongu/DATA5/hyeongu/YUHS_transfer_data/data/pre_post_TU/final_data/major_prop.txt", sep='\t')
 # tu = pd.read_csv("/home/hyeongu/DATA5/hyeongu/YUHS_transfer_data/data/pre_post_TU/final_data/minor_prop.txt", sep='\t')
 
 # %%
@@ -47,7 +67,7 @@ for i in range(int(len(samples)/2)):
 m_tu.columns = samples
 
 #%%
-#^ sample filtering: only responders!
+#^ sample filtering:R vs. NR 202303
 group_info = pd.read_csv('/home/hyeongu/DATA5/hyeongu/FFPE_align_files/GC_server/GC_TU/clinical_info_gHRD/processed_info_with_originalID.txt', sep="\t", index_col="GID")
 
 group_info = group_info[["OM/OS", "ORR", "drug", "interval"]]
@@ -66,16 +86,27 @@ clinical = group_info
 
 wholesample = pd.DataFrame(m_tu.columns, columns=['sample'])
 
-res_int = clinical[clinical['group']==1]
+res = clinical[clinical['group']==1]
+nr = clinical[clinical['group']==0]
 
-mtsample = pd.DataFrame(res_int.index)
+ressample = pd.DataFrame(res.index)
+nrsample = pd.DataFrame(nr.index)
+
 wholesample['GID'] = wholesample['sample'].str[:-4]
 
-onlymt = pd.merge(wholesample, mtsample, on='GID', how='inner')
+onlyres = pd.merge(wholesample, ressample, on='GID', how='inner')
+onlynr = pd.merge(wholesample, nrsample, on='GID', how='inner')
 
-mtsamplelist = onlymt['sample'].tolist()
+ressamplelist = onlyres['sample'].tolist()
+preres = [x for x in ressamplelist if 'bfD' in x ]
+nrsamplelist = onlynr['sample'].tolist()
+prenr = [x for x in nrsamplelist if 'bfD' in x ]
 
-m_tu = m_tu[mtsamplelist]
+res_tu = m_tu[preres]
+nr_tu = m_tu[prenr]
+
+#%% #^ boxplot between R pre vs. NR pre
+
 
 #%%
 pre = [x for x in samples if 'bfD' in x ]

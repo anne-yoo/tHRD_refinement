@@ -48,8 +48,8 @@ for random_state in range(1,301):
     random_state = random.randint(1,9999999)
     DIR = "/home/hyeongu/DATA5/hyeongu/FFPE_align_files/GC_server/GC_TU/merged_TU/whole_TU/XGBoost/"
     file_id = sys.argv[1]   
-    # Old features 개수 맞춤: 230109_ex_pre-post_From_term_GENE_pos_sig_response_input.txt
-    # Filtering 이후 전체 featrues: 230109_ex_pre-post_From_term_GENE_Filtered_pos_sig_response_input.txt
+    # Filtering 이후 전체 featrues: 230109_ex_pre-post_From_term_GENE_pos_sig_response_input.txt
+    # Old features 개수 맞춤: 230109_ex_pre-post_From_term_GENE_Filtered_pos_sig_response_input.txt
     merged = pd.read_csv(
                         DIR
                         +file_id,

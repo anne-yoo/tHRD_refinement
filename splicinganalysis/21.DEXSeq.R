@@ -99,7 +99,7 @@ p069 = c("#E2E2E2","#E2E2E2","#E2E2E2","#E2E2E2","#Ea3b2a","#E2E2E2","#E2E2E2",
          "#E2E2E2","#E2E2E2","#0C5DE6","#E2E2E2","#E2E2E2","#E2E2E2","#E2E2E2") 
 
 
-plotDEXSeq( dxr1, "ENSG00000136492.4", legend=TRUE,  expression=FALSE, norCounts=TRUE, displayTranscripts=FALSE, cex.axis=1.4, cex=1, lwd=2.3, color.samples = p107)
-
+plotDEXSeq( dxr1, "ENSG00000136492.4", legend=TRUE,  expression=FALSE, norCounts=TRUE, displayTranscripts=FALSE, cex.axis=1.4, cex=1, lwd=2.3, color.samples = p068)
+ooo
 
 

@@ -23,4 +23,4 @@ with(subset(res, padj<.01 ), points(log2FoldChange, -log10(pvalue), pch=20, col=
 with(subset(res, padj<.01 & abs(log2FoldChange)>2), points(log2FoldChange, -log10(pvalue), pch=20, col="red"))
 
 #save
-write.csv(res, '/home/jiye/jiye/copycomparison/OC_transcriptome/splicing/DESeq2/DEGresult.csv',row.names = TRUE)
+#write.csv(res, '/home/jiye/jiye/copycomparison/OC_transcriptome/splicing/DESeq2/DEGresult.csv',row.names = TRUE)

@@ -1,4 +1,3 @@
-
 #? columns: loc / genome_AF / impact / patient_ID / response / duration
 #? 
 
