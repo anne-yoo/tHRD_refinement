@@ -74,7 +74,7 @@ avg_post = f_gene.iloc[:, ::2].mean(axis=1)
 fold_change = np.log2(avg_post / avg_pre)
 result_df['log2FC'] = fold_change
 
-result_df.to_csv('/home/jiye/jiye/copycomparison/GENCODEquant/SEV_prepost/merged_analysis/wilcoxon_DEGresult_FC.txt', sep='\t')
+#result_df.to_csv('/home/jiye/jiye/copycomparison/GENCODEquant/SEV_prepost/merged_analysis/wilcoxon_DEGresult_FC.txt', sep='\t')
 
 
 #%%
@@ -525,3 +525,189 @@ for i in range(2):
     
     
     stable_result.to_csv('/home/jiye/jiye/copycomparison/gDUTresearch/202310_analysis/DUT/'+namelist[i]+'_wholegene_DUT_Wilcoxon.txt', sep='\t')
+
+
+# %%
+#####^^^ Baseline AR pre vs IR pre DUT with stable / variable grouping ####
+
+baseline_sampleinfo = pd.read_csv(
+    '/home/jiye/jiye/copycomparison/gDUTresearch/GEN_FINALDATA/SEV_prepost_80_clinicalinfo.txt',
+    sep='\t',
+    index_col=0
+)
+
+baseline_ar_pre = baseline_sampleinfo.loc[
+    (baseline_sampleinfo['response'] == 1)
+    & baseline_sampleinfo['sample_full'].str.contains(r'-bfD$', case=False, na=False),
+    'sample_full'
+].tolist()
+
+baseline_ir_pre = baseline_sampleinfo.loc[
+    (baseline_sampleinfo['response'] == 0)
+    & baseline_sampleinfo['sample_full'].str.contains(r'-bfD$', case=False, na=False),
+    'sample_full'
+].tolist()
+
+baseline_pre_cols = baseline_ar_pre + baseline_ir_pre
+
+
+def run_baseline_mwu(expr_df, ar_cols, ir_cols):
+    p_values = []
+    mean_ar = []
+    mean_ir = []
+
+    for _, row in expr_df.iterrows():
+        ar_vals = row[ar_cols].astype(float).to_numpy()
+        ir_vals = row[ir_cols].astype(float).to_numpy()
+
+        ar_valid = ar_vals[~np.isnan(ar_vals)]
+        ir_valid = ir_vals[~np.isnan(ir_vals)]
+
+        mean_ar.append(np.nan if len(ar_valid) == 0 else ar_valid.mean())
+        mean_ir.append(np.nan if len(ir_valid) == 0 else ir_valid.mean())
+
+        if len(ar_valid) == 0 or len(ir_valid) == 0:
+            p_values.append(1.0)
+            continue
+
+        if (
+            np.all(ar_valid == ar_valid[0])
+            and np.all(ir_valid == ir_valid[0])
+            and ar_valid[0] == ir_valid[0]
+        ):
+            p_values.append(1.0)
+            continue
+
+        try:
+            _, p = stats.mannwhitneyu(ar_valid, ir_valid, alternative='two-sided')
+        except ValueError:
+            p = 1.0
+
+        p_values.append(p)
+
+    return p_values, mean_ar, mean_ir
+
+
+def safe_log2_ratio(numerator, denominator):
+    with np.errstate(divide='ignore', invalid='ignore'):
+        return np.log2(numerator / denominator)
+
+
+baseline_geneexp = pd.read_csv(
+    '/home/jiye/jiye/copycomparison/GENCODEquant/SEV_prepost/merged_cov5_80_gene_TPM.txt',
+    sep='\t',
+    index_col=0
+)
+baseline_geneexp = baseline_geneexp[baseline_geneexp.index.isin(proteincodinglist)]
+baseline_gene_cols = [c for c in baseline_pre_cols if c in baseline_geneexp.columns]
+baseline_gene_ar_cols = [c for c in baseline_ar_pre if c in baseline_gene_cols]
+baseline_gene_ir_cols = [c for c in baseline_ir_pre if c in baseline_gene_cols]
+baseline_geneexp = baseline_geneexp[baseline_gene_cols]
+
+baseline_deg_pval, baseline_gene_mean_ar, baseline_gene_mean_ir = run_baseline_mwu(
+    baseline_geneexp,
+    baseline_gene_ar_cols,
+    baseline_gene_ir_cols
+)
+
+baseline_deg_adj = multipletests(baseline_deg_pval, method='fdr_bh')[1]
+baseline_deg_result = pd.DataFrame({
+    'p_value': baseline_deg_pval,
+    'adj_p': baseline_deg_adj,
+    'gene_name': baseline_geneexp.index,
+    'mean_AR_pre': baseline_gene_mean_ar,
+    'mean_IR_pre': baseline_gene_mean_ir,
+})
+baseline_deg_result.index = baseline_geneexp.index
+baseline_deg_result['log2FC'] = safe_log2_ratio(
+    baseline_deg_result['mean_AR_pre'],
+    baseline_deg_result['mean_IR_pre']
+)
+baseline_deg_result['delta_exp'] = (
+    baseline_deg_result['mean_AR_pre'] - baseline_deg_result['mean_IR_pre']
+)
+
+# stable / variable split uses p-value only
+baseline_variable_genes = set(
+    baseline_deg_result.loc[baseline_deg_result['p_value'] < 0.05, 'gene_name']
+)
+baseline_stable_genes = set(baseline_deg_result['gene_name']) - baseline_variable_genes
+
+print('Baseline variable genes:', len(baseline_variable_genes))
+print('Baseline stable genes:', len(baseline_stable_genes))
+
+baseline_deg_result.to_csv(
+    '/home/jiye/jiye/copycomparison/GENCODEquant/SEV_prepost/merged_cov5_analysis/whole_baseline_ARpre_vs_IRpre_MannWhitney_DEGresult_FC.txt',
+    sep='\t'
+)
+
+
+baseline_transexp = pd.read_csv(
+    '/home/jiye/jiye/copycomparison/GENCODEquant/SEV_prepost/merged_cov5_80_transcript_TPM.txt',
+    sep='\t',
+    index_col=0
+)
+baseline_transexp = baseline_transexp[baseline_transexp['gene_name'].isin(proteincodinglist)].copy()
+
+baseline_tx_cols = [c for c in baseline_pre_cols if c in baseline_transexp.columns]
+baseline_tx_ar_cols = [c for c in baseline_ar_pre if c in baseline_tx_cols]
+baseline_tx_ir_cols = [c for c in baseline_ir_pre if c in baseline_tx_cols]
+
+baseline_detect_min = max(1, int(np.ceil(len(baseline_tx_cols) * 0.3)))
+baseline_detect_mask = (baseline_transexp[baseline_tx_cols] > 0).sum(axis=1) >= baseline_detect_min
+baseline_transexp = baseline_transexp.loc[baseline_detect_mask].copy()
+
+baseline_transexp['gene'] = baseline_transexp.index.str.split("-", n=1).str[-1]
+baseline_gene_sum = baseline_transexp.groupby('gene')[baseline_tx_cols].transform('sum')
+baseline_filtered_trans = baseline_transexp[baseline_tx_cols].div(baseline_gene_sum)
+baseline_filtered_trans['gene_name'] = baseline_transexp['gene_name'].values
+
+
+def build_baseline_dut_result(trans_df, gene_set, ar_cols, ir_cols):
+    sub = trans_df[trans_df['gene_name'].isin(gene_set)].copy()
+    expr_only = sub[ar_cols + ir_cols].copy()
+
+    dut_pval, mean_ar, mean_ir = run_baseline_mwu(expr_only, ar_cols, ir_cols)
+    dut_adj = multipletests(dut_pval, method='fdr_bh')[1]
+
+    result = pd.DataFrame({
+        'p_value': dut_pval,
+        'adj_p': dut_adj,
+        'gene_name': sub['gene_name'].values,
+        'mean_AR_pre': mean_ar,
+        'mean_IR_pre': mean_ir,
+    }, index=sub.index)
+
+    result['log2FC'] = safe_log2_ratio(result['mean_AR_pre'], result['mean_IR_pre'])
+    result['delta_TU'] = result['mean_AR_pre'] - result['mean_IR_pre']
+    return result
+
+
+baseline_variable_result = build_baseline_dut_result(
+    baseline_filtered_trans,
+    baseline_variable_genes,
+    baseline_tx_ar_cols,
+    baseline_tx_ir_cols
+)
+
+baseline_stable_result = build_baseline_dut_result(
+    baseline_filtered_trans,
+    baseline_stable_genes,
+    baseline_tx_ar_cols,
+    baseline_tx_ir_cols
+)
+
+print('Baseline variable DUT:', (baseline_variable_result['p_value'] < 0.05).sum())
+print('Baseline stable DUT:', (baseline_stable_result['p_value'] < 0.05).sum())
+
+baseline_variable_result.to_csv(
+    '/home/jiye/jiye/copycomparison/GENCODEquant/SEV_prepost/merged_cov5_analysis/whole_baseline_ARpre_vs_IRpre_variable_DUT_MannWhitney_delta_withna.txt',
+    sep='\t'
+)
+baseline_stable_result.to_csv(
+    '/home/jiye/jiye/copycomparison/GENCODEquant/SEV_prepost/merged_cov5_analysis/whole_baseline_ARpre_vs_IRpre_stable_DUT_MannWhitney_delta_withna.txt',
+    sep='\t'
+)
+
+# %%
+

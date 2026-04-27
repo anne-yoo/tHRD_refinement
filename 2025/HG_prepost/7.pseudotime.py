@@ -4,6 +4,7 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
+import os
 import statsmodels.stats.multitest as ssm
 import scipy as sp
 import pickle
@@ -253,7 +254,7 @@ ir_tx_class3 = list(set(IRdutlist) & set(class3))
 # --- 실행 부분 ---
 # (AR/IR dutlist 및 class1 준비 코드는 그대로 유지)
 df_long_dut, fig_dut, ax_dut = plot_responsive_dut_boxplot_final(pre_TU_gene, post_TU_gene, ar_tx_class1, ir_tx_class1, sampleinfo)
-plt.savefig("/home/jiye/jiye/copycomparison/GENCODEquant/SEV_prepost/merged_cov5_analysis/0210figures/class1_ARIRdutunion_boxplot.pdf", bbox_inches='tight', dpi=300)
+plt.savefig("/home/jiye/jiye/copycomparison/GENCODEquant/figures/class1_ARIRdutunion_boxplot.pdf", bbox_inches='tight', dpi=300)
 plt.show()
 
 df_long_all, fig_all, ax_all = plot_all_class1_boxplot_final(pre_TU_gene, post_TU_gene, class1, sampleinfo)
@@ -687,7 +688,7 @@ def plot_unsupervised_clusters_on_pca(
 
     plt.tight_layout()
     sns.despine()
-    plt.savefig("/home/jiye/jiye/copycomparison/GENCODEquant/SEV_prepost/merged_cov5_analysis/0210figures/class1_pca_kmeans_clusters.pdf", bbox_inches='tight', dpi=300)
+    plt.savefig("/home/jiye/jiye/copycomparison/GENCODEquant/figures/class1_pca_kmeans_clusters.pdf", bbox_inches='tight', dpi=300)
     plt.show()
 
     return df, comp, ir_like_cluster, moved_to_ir_like
@@ -724,68 +725,6 @@ cluster_counts = comp.copy()
 
 cluster_counts.index.name = "cluster"
 cluster_counts["total"] = cluster_counts.sum(axis=1)
-
-# sns.set_style("ticks")
-
-# def plot_cluster_composition_stacked(cluster_counts, save_path=None):
-#     df = cluster_counts.copy()
-
-#     # total column 있으면 제외
-#     cols = ["AR_pre", "AR_post", "IR_pre", "IR_post"]
-#     prop = df[cols].div(df[cols].sum(axis=1), axis=0)
-
-#     colors = { "AR_pre": "#FFEDA0","AR_post": "#FEB24C","IR_pre": "#D9F0D3","IR_post": "#5AAE61"}
-
-#     fig, ax = plt.subplots(figsize=(8, 3))  # 납작하게
-#     left = np.zeros(len(prop))
-
-#     ylabels = [f"C{idx}" if str(idx).isdigit() else str(idx) for idx in prop.index]
-
-#     for col in cols:
-#         ax.barh(
-#             y=np.arange(len(prop)),
-#             width=prop[col].values,
-#             left=left,
-#             color=colors[col],
-#             edgecolor="white",
-#             height=0.6,
-#             label=col
-#         )
-#         left += prop[col].values
-
-#     # bar 내부에 count 같이 쓰고 싶으면
-#     for i, idx in enumerate(df.index):
-#         cum = 0
-#         for col in cols:
-#             val = df.loc[idx, col]
-#             frac = prop.loc[idx, col]
-#             if frac > 0.08:  # 너무 작으면 글씨 생략
-#                 ax.text(
-#                     cum + frac / 2, i, str(val),
-#                     ha="center", va="center",
-#                     fontsize=8, color="black"
-#                 )
-#             cum += frac
-
-#     ax.set_yticks(np.arange(len(prop)))
-#     ax.set_yticklabels(ylabels)
-#     ax.set_xlim(0, 1)
-#     ax.set_xlabel("proportion")
-#     ax.set_ylabel("")
-#     ax.legend(
-#         frameon=False, ncol=4, loc="upper center",
-#         bbox_to_anchor=(0.5, 1.16), fontsize=10,
-#         handlelength=1.2, columnspacing=1.0
-#     )
-
-#     sns.despine()
-#     plt.tight_layout()
-
-#     if save_path:
-#         plt.savefig(save_path, dpi=300, bbox_inches="tight")
-#     plt.show()
-
-# plot_cluster_composition_stacked(cluster_counts, save_path="/home/jiye/jiye/copycomparison/GENCODEquant/SEV_prepost/merged_cov5_analysis/0210figures/class3_pca_kmeans_cluster_composition.pdf")
 
 sns.set_style("ticks")
 
@@ -856,10 +795,9 @@ def plot_cluster_composition_stacked_vertical(cluster_counts, save_path=None):
         plt.savefig(save_path, dpi=300, bbox_inches="tight")
     plt.show()
     
-plot_cluster_composition_stacked_vertical(cluster_counts, save_path="/home/jiye/jiye/copycomparison/GENCODEquant/SEV_prepost/merged_cov5_analysis/0210figures/class1_pca_kmeans_cluster_composition.pdf")
+plot_cluster_composition_stacked_vertical(cluster_counts,save_path="/home/jiye/jiye/copycomparison/GENCODEquant/figures/class1_pca_kmeans_cluster_composition.pdf" ) #
 
 
-#%%
 #%%
 ####^^ PC1 boxplot  ###########
 delta_TU_gene = filtered_trans.copy()
@@ -933,7 +871,7 @@ plt.xlabel("")
 plt.ylabel("PC1")
 sns.despine()
 plt.tight_layout()
-plt.savefig("/home/jiye/jiye/copycomparison/GENCODEquant/SEV_prepost/merged_cov5_analysis/0210figures/class1_pca_PC1_boxplot.pdf", bbox_inches='tight', dpi=300)
+plt.savefig("/home/jiye/jiye/copycomparison/GENCODEquant/figures/class1_pca_PC1_boxplot.pdf", bbox_inches='tight', dpi=300)
 plt.show()
 
 #%%
@@ -1019,22 +957,77 @@ def get_pc1_loading_and_topgenes(
     }
 import gseapy as gp
 
-def get_top_enrichment(gene_list, label, gene_sets=('GO_Biological_Process_2021', 'Reactome_2022')):
-    enr = gp.enrichr(
-        gene_list=gene_list,
-        gene_sets=list(gene_sets),
-        organism='Human',
-        outdir=None
-    )
+def get_goterm_genes_from_top_genes(term_list, top_genes, gene_set='Reactome_2022'):
+    """
+    주어진 GO/Reactome term 리스트에 대해, 각 term에 등록된 유전자 중 
+    top_genes에 나타나는 유전자를 찾아 반환
+    
+    Parameters:
+    -----------
+    term_list : list
+        관심있는 GO/Reactome term 리스트
+    top_genes : list
+        상위 loading 유전자 리스트
+    gene_set : str
+        사용할 gene set (기본값: 'Reactome_2022')
+    
+    Returns:
+    --------
+    dict
+        각 term별로 상위 유전자와의 교집합을 포함하는 딕셔너리
+    """
+    top_genes_set = set(top_genes)
+    results = {}
+    
+    # 모든 gene set 가져오기
+    try:
+        all_genesets = gp.get_library(name=gene_set, organism='Human')
+    except:
+        print(f"Failed to load {gene_set}. Trying to get available gene sets...")
+        return results
+    
+    for term in term_list:
+        # 각 term과 유사한 이름의 pathway 찾기 (정확한 매칭 또는 부분 매칭)
+        matching_pathways = [
+            pathway for pathway in all_genesets.keys() 
+            if term.upper() in pathway.upper()
+        ]
+        
+        found_genes = []
+        for pathway_name in matching_pathways:
+            pathway_genes = set(all_genesets[pathway_name])
+            intersection = pathway_genes & top_genes_set
+            if intersection:
+                found_genes.extend(list(intersection))
+        
+        # 중복 제거
+        found_genes = list(set(found_genes))
+        
+        results[term] = {
+            'found_genes': found_genes,
+            'n_found': len(found_genes),
+            'matching_pathways': matching_pathways
+        }
+    
+    return results
 
-    res = enr.results.copy()
-    res = res.sort_values(by='Adjusted P-value')
-    res['Term'] = res['Term'].astype(str).str.rsplit(" ", n=1).str[0]
-    res['-log10(FDR)'] = -np.log10(res['Adjusted P-value'] + 1e-300)
+Class1_GOlist = [
+    "Mitotic Anaphase",
+    "Mitotic Metaphase And Anaphase",
+    "Cell Cycle, Mitotic",
+    "Cell Cycle",
+    "M Phase"
+]
 
-    top5 = res.head(5).copy()
-    top5['Group'] = label
-    return top5
+Class3_GOlist = [
+    "Cellular Responses To Stimuli",
+    "HDR Thru Homologous Recombination (HRR)",
+    #"Interleukin-15 Signaling",
+    "Homology Directed Repair",
+    "DNA Double-Strand Break Repair",
+    "Processing Of DNA Double-Strand Break Ends"
+]
+
 # class1
 res_class1 = get_pc1_loading_and_topgenes(
     pre_TU=pre_TU_gene,
@@ -1064,60 +1057,436 @@ from matplotlib.patches import Patch
 
 print("Class1 top genes:", len(top_genes_class1))
 print("Class3 top genes:", len(top_genes_class3))
-top5_class1 = get_top_enrichment(top_genes_class1, 'PC1 loading top100 (Class 1)')
-top5_class3 = get_top_enrichment(top_genes_class3, 'PC1 loading top100 (Class 3)')
 
-df_plot = pd.concat([top5_class1, top5_class3], ignore_index=True)
+# ===== Class1 GO terms 검색 =====
+print("\n=== Class1 GO Terms 검색 결과 ===")
+class1_goterm_results = get_goterm_genes_from_top_genes(Class1_GOlist, top_genes_class1, gene_set='Reactome_2022')
 
-# 순서 정리: class1 top5 먼저, class3 top5 아래
-term_order = top5_class1["Term"].tolist() + top5_class3["Term"].tolist()
+class1_summary = []
+for term, result in class1_goterm_results.items():
+    print(f"\n{term}")
+    print(f"  Found genes: {result['n_found']} 개")
+    if result['found_genes']:
+        print(f"  Genes: {', '.join(result['found_genes'][:10])}" + 
+              ("..." if len(result['found_genes']) > 10 else ""))
+    else:
+        print(f"  No matching genes found")
+    print(f"  Matching pathways: {len(result['matching_pathways'])} 개")
+    if result['matching_pathways']:
+        for pw in result['matching_pathways'][:3]:
+            print(f"    - {pw}")
+    
+    class1_summary.append({
+        'Term': term,
+        'n_genes': result['n_found'],
+        'genes': ', '.join(result['found_genes']) if result['found_genes'] else 'None'
+    })
 
-plt.rcParams["font.family"] = "Arial"
-fig = plt.figure(figsize=(8, 5.5))
-ax = fig.add_axes([0.12, 0.12, 0.42, 0.78])
-palette = ['#FF9616'] * len(top5_class1) + ['#1E9652'] * len(top5_class3)
+# ===== Class3 GO terms 검색 =====
+print("\n=== Class3 GO Terms 검색 결과 ===")
+class3_goterm_results = get_goterm_genes_from_top_genes(Class3_GOlist, top_genes_class3, gene_set='Reactome_2022')
 
-sns.barplot(
-    data=df_plot,
-    x='-log10(FDR)',
-    y='Term',
-    order=term_order,
-    palette=palette,
-    ax=ax
-)
-legend_elements = [
-    Patch(facecolor='#FF9616', label='PC1 loading top100 genes (Class 1)'),
-    Patch(facecolor='#1E9652', label='PC1 loading top100 genes (Class 3)')
+class3_summary = []
+for term, result in class3_goterm_results.items():
+    print(f"\n{term}")
+    print(f"  Found genes: {result['n_found']} 개")
+    if result['found_genes']:
+        print(f"  Genes: {', '.join(result['found_genes'][:10])}" + 
+              ("..." if len(result['found_genes']) > 10 else ""))
+    else:
+        print(f"  No matching genes found")
+    print(f"  Matching pathways: {len(result['matching_pathways'])} 개")
+    if result['matching_pathways']:
+        for pw in result['matching_pathways'][:3]:
+            print(f"    - {pw}")
+    
+    class3_summary.append({
+        'Term': term,
+        'n_genes': result['n_found'],
+        'genes': ', '.join(result['found_genes']) if result['found_genes'] else 'None'
+    })
+
+# ===== 요약 테이블 생성 =====
+print("\n\n=== 최종 요약 ===")
+class1_df = pd.DataFrame(class1_summary)
+class3_df = pd.DataFrame(class3_summary)
+
+print("\nClass1 GO Terms 매칭 요약:")
+print(class1_df.to_string(index=False))
+
+print("\nClass3 GO Terms 매칭 요약:")
+print(class3_df.to_string(index=False))
+
+
+#%%
+Class1_sig_genelist = [
+    "MAPRE1", "CHMP7", "KPNB1", "PSME4", "PDS5A",
+    "TNPO1", "VRK2", "AKT2", "NIPBL", "CNOT10"
 ]
 
-ax.yaxis.tick_right()
-ax.yaxis.set_label_position("right")
-for label in ax.get_yticklabels():
-    label.set_horizontalalignment("left")
+Class3_sig_genelist = [
+    "POLR1B", "HM13", "NUP85", "CREB3L2", "BAG1", "ACTR10",
+    "RBBP8", 
+]
 
-ax.set_xlabel('-log10(FDR)', fontsize=13)
-ax.set_ylabel('')
-ax.grid(axis='x', linestyle='--', alpha=0.5)
-ax.set_xlim(0, df_plot['-log10(FDR)'].max() * 1.1)
+#"GAB2", "GRB2"
 
-# ax.legend(
-#     handles=legend_elements,
-#     #loc='upper left',
-#     #bbox_to_anchor=(1.02, 1.0),
-#     frameon=False,
-#     fontsize=10,
-#     handlelength=1.5
+# ===== 유전자별 DUT PCA 및 Boxplot (Sample-wise PC1) =====
+
+def plot_class_dut_pc1_boxplot(
+    pre_TU, post_TU, sampleinfo, class_list, ar_dut_list, ir_dut_list,
+    ar_samples, ir_samples, class_name, sig_genelist=None, save_path=None
+):
+    """
+    특정 class DUT로 PCA를 계산하고 sample-wise PC1 boxplot 그리기
+    
+    Parameters:
+    -----------
+    pre_TU, post_TU : DataFrame
+        Transcript별 Pre/Post 발현량
+    class_list : list
+        Class 1 또는 Class 3 transcript 리스트
+    ar_dut_list, ir_dut_list : list
+        AR/IR DUT 리스트
+    ar_samples, ir_samples : Index
+        AR/IR 샘플
+    class_name : str
+        Class 이름 (Class1, Class3)
+    sig_genelist : list, optional
+        시그니처 유전자 리스트 (필터링용)
+    """
+    from sklearn.decomposition import PCA
+    
+    # DUT 교집합 (class & DUT)
+    dut_union = set(ar_dut_list) | set(ir_dut_list)
+    feat = list(set(class_list) & dut_union & set(pre_TU.index) & set(post_TU.index))
+    
+    # sig_genelist로 한 번 더 필터링
+    if sig_genelist is not None:
+        sig_genelist_set = set(sig_genelist)
+        # DUT의 유전자 추출 (transcript-gene: ENST....-GENE 형식)
+        feat = [
+            t for t in feat 
+            if t.split('-', 1)[-1] in sig_genelist_set
+        ]
+        print(f"{class_name}: Filtered to {len(feat)} DUTs from {len(sig_genelist)} sig genes")
+    
+    if len(feat) < 5:
+        print(f"Warning: Not enough features for {class_name}. Found {len(feat)} DUTs")
+        return
+    
+    print(f"{class_name}: {len(feat)} DUTs for PCA")
+    
+    preX = pre_TU.loc[feat].copy()
+    postX = post_TU.loc[feat].copy()
+    
+    common_samples = preX.columns.intersection(postX.columns)
+    preX = preX[common_samples]
+    postX = postX[common_samples]
+    
+    # NaN handling
+    ok = (~preX.isna().any(axis=1)) & (~postX.isna().any(axis=1))
+    preX = preX.loc[ok]
+    postX = postX.loc[ok]
+    
+    if len(preX) < 5:
+        print(f"Warning: Not enough non-NaN features")
+        return
+    
+    # Transform (logit + z-score)
+    preT, postT = _prep_logit_z(preX, postX, ir_samples, eps=1e-3, use_zscore=True)
+    
+    # PCA 계산
+    cols_for_pca = list(ir_samples) + list(ar_samples)
+    common_cols = [c for c in cols_for_pca if c in preT.columns]
+    
+    X_pre = preT[common_cols].T
+    X_post = postT[common_cols].T
+    X_all = pd.concat([X_pre, X_post], axis=0)
+    
+    pca = PCA(n_components=2, random_state=0)
+    pca.fit(X_all.values)
+    
+    # PC1 값 추출
+    coord_pre = pd.DataFrame(
+        pca.transform(X_pre),
+        columns=['PC1', 'PC2'],
+        index=X_pre.index
+    )
+    coord_post = pd.DataFrame(
+        pca.transform(X_post),
+        columns=['PC1', 'PC2'],
+        index=X_post.index
+    )
+    
+    # Sample-wise boxplot 데이터 구성 (863줄 로직 사용)
+    rows = []
+    
+    for s in ar_samples:
+        if s in coord_pre.index:
+            rows.append((s, "AR_pre", coord_pre.loc[s, "PC1"]))
+        if s in coord_post.index:
+            rows.append((s, "AR_post", coord_post.loc[s, "PC1"]))
+    
+    for s in ir_samples:
+        if s in coord_pre.index:
+            rows.append((s, "IR_pre", coord_pre.loc[s, "PC1"]))
+        if s in coord_post.index:
+            rows.append((s, "IR_post", coord_post.loc[s, "PC1"]))
+    
+    pc1_df = pd.DataFrame(rows, columns=["sample", "Group", "PC1"])
+    
+    # Boxplot 그리기
+    order = ["AR_pre", "AR_post", "IR_pre", "IR_post"]
+    palette = {
+        "AR_pre": "#FFEDA0",
+        "AR_post": "#FEB24C",
+        "IR_pre": "#D9F0D3",
+        "IR_post": "#5AAE61"
+    }
+    
+    plt.figure(figsize=(4, 5))
+    
+    ax = sns.boxplot(
+        data=pc1_df,
+        x="Group",
+        y="PC1",
+        order=order,
+        palette=palette,
+        boxprops=dict(alpha=0.9),
+        fliersize=0,
+        width=0.6
+    )
+    
+    sns.stripplot(
+        data=pc1_df,
+        x="Group",
+        y="PC1",
+        order=order,
+        color="black",
+        size=3.5,
+        alpha=0.65,
+        jitter=0.15
+    )
+    
+    plt.title(f"{class_name} ({len(feat)} DUTs) - PC1 by Group", fontsize=12)
+    plt.xticks(rotation=45)
+    plt.xlabel("")
+    plt.ylabel("PC1")
+    sns.despine()
+    plt.tight_layout()
+    
+    if save_path:
+        plt.savefig(save_path, bbox_inches='tight', dpi=300)
+    plt.show()
+    
+    return pc1_df
+
+
+# Class1 DUT PC1 Boxplot (sig_genelist 필터링)
+print("=" * 60)
+print("Class1 DUT PC1 Boxplot (Sample-wise, sig_genelist filtered)")
+print("=" * 60)
+pc1_class1_dut_df = plot_class_dut_pc1_boxplot(
+    pre_TU=pre_TU_gene,
+    post_TU=post_TU_gene,
+    sampleinfo=sampleinfo,
+    class_list=class1,
+    ar_dut_list=ar_tx_class1,
+    ir_dut_list=ir_tx_class1,
+    ar_samples=ar_samples,
+    ir_samples=ir_samples,
+    class_name="Class1",
+    sig_genelist=Class1_sig_genelist,
+    save_path="/home/jiye/jiye/copycomparison/GENCODEquant/figures/class1_sig_genes_PC1_boxplot.pdf"
+)
+
+# Class3 DUT PC1 Boxplot (sig_genelist 필터링)
+print("\n" + "=" * 60)
+print("Class3 DUT PC1 Boxplot (Sample-wise, sig_genelist filtered)")
+print("=" * 60)
+pc1_class3_dut_df = plot_class_dut_pc1_boxplot(
+    pre_TU=pre_TU_gene,
+    post_TU=post_TU_gene,
+    sampleinfo=sampleinfo,
+    class_list=class3,
+    ar_dut_list=ar_tx_class3,
+    ir_dut_list=ir_tx_class3,
+    ar_samples=ar_samples,
+    ir_samples=ir_samples,
+    class_name="Class3",
+    sig_genelist=Class3_sig_genelist,
+    save_path="/home/jiye/jiye/copycomparison/GENCODEquant/figures/class3_sig_genes_PC1_boxplot.pdf"
+)
+
+
+def get_sig_gene_dut_transcripts(dut_tx_list, sig_genelist, pre_TU, post_TU):
+    sig_genes = set(sig_genelist)
+    selected = sorted(
+        tx for tx in dut_tx_list
+        if tx in pre_TU.index
+        and tx in post_TU.index
+        and tx.split("-", 1)[-1] in sig_genes
+    )
+    return selected
+
+
+def plot_single_dut_tu_boxplot(
+    tx_id,
+    pre_TU,
+    post_TU,
+    ar_samples,
+    ir_samples,
+    save_path=None
+):
+    order = ["AR_pre", "AR_post", "IR_pre", "IR_post"]
+    palette = {
+        "AR_pre": "#FFEDA0",
+        "AR_post": "#FEB24C",
+        "IR_pre": "#D9F0D3",
+        "IR_post": "#5AAE61"
+    }
+
+    rows = []
+    for sample in ar_samples:
+        if sample in pre_TU.columns and pd.notna(pre_TU.loc[tx_id, sample]):
+            rows.append((sample, "AR_pre", pre_TU.loc[tx_id, sample]))
+        if sample in post_TU.columns and pd.notna(post_TU.loc[tx_id, sample]):
+            rows.append((sample, "AR_post", post_TU.loc[tx_id, sample]))
+
+    for sample in ir_samples:
+        if sample in pre_TU.columns and pd.notna(pre_TU.loc[tx_id, sample]):
+            rows.append((sample, "IR_pre", pre_TU.loc[tx_id, sample]))
+        if sample in post_TU.columns and pd.notna(post_TU.loc[tx_id, sample]):
+            rows.append((sample, "IR_post", post_TU.loc[tx_id, sample]))
+
+    df_long = pd.DataFrame(rows, columns=["sample", "Group", "TU"])
+    if df_long.empty:
+        return None
+
+    gene_name = tx_id.split("-", 1)[-1] if "-" in tx_id else tx_id
+    transcript_id = tx_id.split("-", 1)[0]
+
+    fig, ax = plt.subplots(figsize=(4.4, 5.0))
+    sns.boxplot(
+        data=df_long,
+        x="Group",
+        y="TU",
+        order=order,
+        palette=palette,
+        boxprops=dict(alpha=0.9),
+        fliersize=0,
+        width=0.6,
+        ax=ax
+    )
+    sns.stripplot(
+        data=df_long,
+        x="Group",
+        y="TU",
+        order=order,
+        color="black",
+        size=3.5,
+        alpha=0.65,
+        jitter=0.15,
+        ax=ax
+    )
+
+    ax.set_title(f"{gene_name}\n{transcript_id}", fontsize=11)
+    ax.set_xlabel("")
+    ax.set_ylabel("TU")
+    ax.tick_params(axis="x", rotation=45)
+    sns.despine()
+    plt.tight_layout()
+
+    if save_path is not None:
+        plt.savefig(save_path, bbox_inches="tight", dpi=300)
+    plt.show()
+
+    return df_long
+
+
+def plot_sig_gene_dut_transcript_boxplots(
+    dut_tx_list,
+    sig_genelist,
+    pre_TU,
+    post_TU,
+    ar_samples,
+    ir_samples,
+    panel_label,
+    outdir
+):
+    os.makedirs(outdir, exist_ok=True)
+
+    selected_tx = get_sig_gene_dut_transcripts(
+        dut_tx_list=dut_tx_list,
+        sig_genelist=sig_genelist,
+        pre_TU=pre_TU,
+        post_TU=post_TU
+    )
+
+    print(f"{panel_label}: {len(selected_tx)} transcripts selected")
+    if len(selected_tx) == 0:
+        return pd.DataFrame(columns=["transcript_id", "gene_name", "save_path"])
+
+    records = []
+    for tx_id in selected_tx:
+        gene_name = tx_id.split("-", 1)[-1] if "-" in tx_id else tx_id
+        transcript_id = tx_id.split("-", 1)[0]
+        safe_name = re.sub(r"[^A-Za-z0-9._-]+", "_", f"{gene_name}_{transcript_id}")
+        save_path = f"{outdir}/{safe_name}_TU_boxplot.pdf"
+
+        plot_single_dut_tu_boxplot(
+            tx_id=tx_id,
+            pre_TU=pre_TU,
+            post_TU=post_TU,
+            ar_samples=ar_samples,
+            ir_samples=ir_samples,
+            save_path=save_path
+        )
+
+        records.append({
+            "transcript_id": transcript_id,
+            "gene_name": gene_name,
+            "tx_full_id": tx_id,
+            "save_path": save_path
+        })
+
+    summary_df = pd.DataFrame(records)
+    summary_df.to_csv(f"{outdir}/{panel_label}_selected_transcripts.tsv", sep="\t", index=False)
+    return summary_df
+
+
+print("\n" + "=" * 60)
+print("Transcript-wise TU Boxplots for Signature-Gene DUTs")
+print("=" * 60)
+
+# class1_ar_sig_dut_boxplots = plot_sig_gene_dut_transcript_boxplots(
+#     dut_tx_list=ar_tx_class1,
+#     sig_genelist=Class1_sig_genelist,
+#     pre_TU=pre_TU_gene,
+#     post_TU=post_TU_gene,
+#     ar_samples=ar_samples,
+#     ir_samples=ir_samples,
+#     panel_label="class1_AR_DUT_sig_genes",
+#     outdir="/home/jiye/jiye/copycomparison/GENCODEquant/figures/class1_AR_DUT_sig_gene_boxplots"
 # )
 
-sns.despine(right=True)
-ax.spines["left"].set_visible(True)
+class3_ar_sig_dut_boxplots = plot_sig_gene_dut_transcript_boxplots(
+    dut_tx_list=ar_tx_class3,
+    sig_genelist=Class3_sig_genelist,
+    pre_TU=pre_TU_gene,
+    post_TU=post_TU_gene,
+    ar_samples=ar_samples,
+    ir_samples=ir_samples,
+    panel_label="class3_AR_DUT_sig_genes",
+    outdir="/home/jiye/jiye/copycomparison/GENCODEquant/figures/class3_AR_DUT_sig_gene_boxplots"
+)
 
-plt.show()
 #%%
-from scipy.stats import spearmanr
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
+from scipy.stats import spearmanr, mannwhitneyu
 
 score_pre = out["score_pre"]
 score_post = out["score_post"]
@@ -2235,23 +2604,201 @@ print(sf_all_res["comp"])
 print("IR-like cluster:", sf_all_res["ir_like_cluster"])
 print("AR moved fraction:", sf_all_res["moved_to_ir_like"])
 
-# diff_SF_genes_uniq = sorted(set(diff_SF_genes))
+#%%
+######^^^ NMD gene exp ###########
 
-# sf_diff_res = run_sf_pca_kmeans(
-#     pre_gene=pre_gene,
-#     post_gene=post_gene,
-#     sampleinfo=sampleinfo2,
-#     feature_genes=diff_SF_genes_uniq,
-#     k=3,
-#     log_transform=True,
-#     zscore_by_ir_pre=True,
-#     title="Differential SF genes PCA + k-means clusters (k=3)",
-#     #save_prefix="/home/jiye/jiye/copycomparison/GENCODEquant/SEV_prepost/merged_cov5_analysis/0210figures/SF_diff"
-# )
+import gseapy as gp
 
-# print(sf_diff_res["comp"])
-# print("IR-like cluster:", sf_diff_res["ir_like_cluster"])
-# print("AR moved fraction:", sf_diff_res["moved_to_ir_like"])
+# Default: GO Biological Process 2021 NMD term
+# NMD_GENESET_NAME = "GO_Biological_Process_2021"
+# NMD_TERM_QUERIES = [
+#     "nuclear-transcribed mRNA catabolic process, nonsense-mediated decay (GO:0000184)"
+# ]
+# NMD_TERM_MATCH_MODE = "exact"
+
+# Quick alternative if you want to switch back to Reactome_2022:
+NMD_GENESET_NAME = "Reactome_2022"
+NMD_TERM_QUERIES = ["R-HSA-975957", "R-HSA-975956"]
+NMD_TERM_MATCH_MODE = "contains"
+
+
+def get_enrichr_genes_by_terms(term_queries, gene_set, organism="Human", match_mode="exact"):
+    gene_lib = gp.get_library(name=gene_set, organism=organism)
+
+    matched_terms = {}
+    for query in term_queries:
+        if match_mode == "exact":
+            hits = [term for term in gene_lib if term.upper() == query.upper()]
+        elif match_mode == "contains":
+            hits = [term for term in gene_lib if query.upper() in term.upper()]
+        else:
+            raise ValueError(f"Unsupported match_mode: {match_mode}")
+
+        if len(hits) == 0:
+            raise ValueError(f"Could not find {query} in {gene_set}")
+        if len(hits) > 1:
+            raise ValueError(f"Multiple terms matched {query} in {gene_set}: {hits}")
+        matched_terms[hits[0]] = sorted(set(gene_lib[hits[0]]))
+
+    union_genes = sorted(set().union(*[set(v) for v in matched_terms.values()]))
+    return union_genes, matched_terms
+
+
+def _safe_paired_wilcoxon(pre_vals, post_vals):
+    paired = pd.DataFrame({"pre": pre_vals, "post": post_vals}).dropna()
+    if paired.shape[0] < 2:
+        return np.nan
+
+    if np.allclose((paired["post"] - paired["pre"]).values, 0):
+        return 1.0
+
+    try:
+        return wilcoxon(paired["pre"], paired["post"], alternative="two-sided").pvalue
+    except ValueError:
+        return np.nan
+
+
+def _format_p_text(pval):
+    if pd.isna(pval):
+        return "p=NA"
+    if pval < 1e-4:
+        return "p<1e-4"
+    return f"p={pval:.2e}"
+
+
+def _add_p_bracket(ax, x1, x2, y, h, text):
+    ax.plot([x1, x1, x2, x2], [y, y + h, y + h, y], lw=1.2, c="black")
+    ax.text((x1 + x2) / 2, y + h, text, ha="center", va="bottom", fontsize=10)
+
+
+def _sample_x_offsets(sample_ids, max_abs=0.12):
+    sample_ids = list(sample_ids)
+    if len(sample_ids) == 0:
+        return {}
+    if len(sample_ids) == 1:
+        return {sample_ids[0]: 0.0}
+
+    offsets = np.linspace(-max_abs, max_abs, len(sample_ids))
+    return dict(zip(sample_ids, offsets))
+
+
+nmd_gene_set, nmd_matched_terms = get_enrichr_genes_by_terms(
+    NMD_TERM_QUERIES,
+    gene_set=NMD_GENESET_NAME,
+    organism="Human",
+    match_mode=NMD_TERM_MATCH_MODE
+)
+
+nmd_genes_used = sorted(set(nmd_gene_set) & set(pre_gene.index) & set(post_gene.index))
+missing_nmd_genes = sorted(set(nmd_gene_set) - set(nmd_genes_used))
+
+print(f"Matched NMD terms from {NMD_GENESET_NAME}:", list(nmd_matched_terms.keys()))
+print(f"NMD genes ({NMD_GENESET_NAME} union):", len(nmd_gene_set))
+print("NMD genes found in expression matrix:", len(nmd_genes_used))
+print("Missing NMD genes from expression matrix:", len(missing_nmd_genes))
+
+ar_samples_nmd = pre_gene.columns.intersection(post_gene.columns).intersection(ar_samples)
+ir_samples_nmd = pre_gene.columns.intersection(post_gene.columns).intersection(ir_samples)
+
+ar_pre_nmd = pre_gene.loc[nmd_genes_used, ar_samples_nmd].mean(axis=0)
+ar_post_nmd = post_gene.loc[nmd_genes_used, ar_samples_nmd].mean(axis=0)
+ir_pre_nmd = pre_gene.loc[nmd_genes_used, ir_samples_nmd].mean(axis=0)
+ir_post_nmd = post_gene.loc[nmd_genes_used, ir_samples_nmd].mean(axis=0)
+
+nmd_exp_df = pd.DataFrame(
+    (
+        [(s, "AR", "pre", "AR_pre", ar_pre_nmd.loc[s]) for s in ar_samples_nmd]
+        + [(s, "AR", "post", "AR_post", ar_post_nmd.loc[s]) for s in ar_samples_nmd]
+        + [(s, "IR", "pre", "IR_pre", ir_pre_nmd.loc[s]) for s in ir_samples_nmd]
+        + [(s, "IR", "post", "IR_post", ir_post_nmd.loc[s]) for s in ir_samples_nmd]
+    ),
+    columns=["sample", "Response", "Timepoint", "Group", "Expression"]
+).dropna()
+
+nmd_order = ["AR_pre", "AR_post", "IR_pre", "IR_post"]
+nmd_exp_df["Group"] = pd.Categorical(nmd_exp_df["Group"], categories=nmd_order, ordered=True)
+
+group_x = {group: idx for idx, group in enumerate(nmd_order)}
+sample_offsets = {}
+sample_offsets.update(_sample_x_offsets(sorted(ar_samples_nmd.tolist())))
+sample_offsets.update(_sample_x_offsets(sorted(ir_samples_nmd.tolist())))
+nmd_exp_df["xpos"] = [
+    group_x[group] + sample_offsets[sample]
+    for sample, group in zip(nmd_exp_df["sample"], nmd_exp_df["Group"])
+]
+
+nmd_fig, nmd_ax = plt.subplots(figsize=(4.8, 5.2))
+sns.boxplot(
+    data=nmd_exp_df,
+    x="Group",
+    y="Expression",
+    order=nmd_order,
+    palette=PALETTE_4GROUP,
+    boxprops=dict(alpha=0.9),
+    fliersize=0,
+    width=0.6,
+    ax=nmd_ax
+)
+
+for response, response_samples in [("AR", ar_samples_nmd), ("IR", ir_samples_nmd)]:
+    response_df = nmd_exp_df[nmd_exp_df["Response"] == response]
+    line_color = "gray"
+
+    for sample in sorted(response_samples.tolist()):
+        sample_df = (
+            response_df[response_df["sample"] == sample]
+            .set_index("Timepoint")
+            .reindex(["pre", "post"])
+            .dropna(subset=["Expression"])
+        )
+        if sample_df.shape[0] == 2:
+            nmd_ax.plot(
+                sample_df["xpos"].values,
+                sample_df["Expression"].values,
+                color=line_color,
+                alpha=0.35,
+                lw=1.0,
+                zorder=2
+            )
+
+for group in nmd_order:
+    group_df = nmd_exp_df[nmd_exp_df["Group"] == group]
+    nmd_ax.scatter(
+        group_df["xpos"],
+        group_df["Expression"],
+        s=24,
+        color="gray",
+        alpha=0.85,
+        edgecolors=None,
+        linewidths=0.4,
+        zorder=3
+    )
+
+ar_p = _safe_paired_wilcoxon(ar_pre_nmd.loc[ar_samples_nmd], ar_post_nmd.loc[ar_samples_nmd])
+ir_p = _safe_paired_wilcoxon(ir_pre_nmd.loc[ir_samples_nmd], ir_post_nmd.loc[ir_samples_nmd])
+
+ymin, ymax = nmd_ax.get_ylim()
+yspan = max(ymax - ymin, 1e-6)
+annot_y = ymax + (0.05 * yspan)
+annot_h = 0.04 * yspan
+
+_add_p_bracket(nmd_ax, 0, 1, annot_y, annot_h, _format_p_text(ar_p))
+_add_p_bracket(nmd_ax, 2, 3, annot_y, annot_h, _format_p_text(ir_p))
+
+nmd_ax.set_ylim(ymin, annot_y + annot_h + (0.10 * yspan))
+nmd_ax.set_title("NMD gene expression", fontsize=12)
+nmd_ax.set_xlabel("")
+nmd_ax.set_ylabel("mean gene exp")
+nmd_ax.tick_params(axis="x", rotation=45)
+nmd_ax.grid(axis="y", linestyle="--", alpha=0.35)
+sns.despine()
+plt.tight_layout()
+plt.savefig(
+    "/home/jiye/jiye/copycomparison/GENCODEquant/figures/NMD_gene_exp_boxplot_reactome.pdf",
+    bbox_inches="tight",
+    dpi=300
+)
+plt.show()
 
 #%%
 ####^^^^ Class 1 /3 ~ SF gene #################
@@ -3154,30 +3701,17 @@ import seaborn as sns
 
 def plot_sf_gene_volcano_panel(
     volcano_df,
-    use_fdr=False,
-    alpha=0.05,
-    label_top_n=5,
-    min_abs_rho_for_label=0.3,
-    figsize=(7, 14),
+    figsize=(7, 8),
     save_path=None
 ):
     """
-    2x3 volcano panel:
-      rows = pre_expr / delta_expr
-      cols = total_tu_score / class1_delta / class3_delta
+    2x3 distribution panel for AR-only Spearman rho values.
 
-    AR and IR are overlaid in each panel.
-
-    Parameters
-    ----------
-    use_fdr : bool
-        if True, y-axis = -log10(FDR), threshold = alpha on FDR
-        if False, y-axis = -log10(pval), threshold = alpha on pval
+    Rows = pre_expr / delta_expr
+    Cols = total_tu_score / class1_delta / class3_delta
     """
     df = volcano_df.copy()
-
-    ycol = "neglog10fdr" if use_fdr else "neglog10p"
-    sigcol = "fdr" if use_fdr else "pval"
+    df = df[df["group"] == "AR"].copy()
 
     expr_order = ["pre_expr", "delta_expr"]
     score_order = ["total_tu_score", "class1_delta", "class3_delta"]
@@ -3191,8 +3725,6 @@ def plot_sf_gene_volcano_panel(
         ("delta_expr", "class3_delta"):   "Delta SF expression vs class3 delta",
     }
 
-    palette = {"AR": "#F0B44D", "IR": "#63B96A"}
-
     fig, axes = plt.subplots(3, 2, figsize=figsize, sharex=True, sharey=True)
     axes = np.array(axes)
 
@@ -3205,65 +3737,74 @@ def plot_sf_gene_volcano_panel(
                 (df["score_type"] == score_type)
             ].copy()
 
-            for grp in ["AR", "IR"]:
-                ss = sub[sub["group"] == grp].copy()
+            if sub.empty:
+                ax.text(0.5, 0.5, "No AR data", ha="center", va="center", fontsize=10)
+                ax.set_title(title_map[(expr_type, score_type)], fontsize=11)
+                ax.set_xlim(-1, 1)
+                ax.set_xticks([-1, 0, 1])
+                ax.set_ylim(0, 1)
+                continue
 
-                ax.scatter(
-                    ss["rho"],
-                    ss[ycol],
-                    s=28,
-                    alpha=0.75,
-                    color='gray',
-                    edgecolor="none",
-                    label=grp if (i == 0 and j == 0) else None
+            from scipy.stats import norm
+
+            rho_values = sub["rho"].dropna()
+            if rho_values.empty:
+                ax.text(0.5, 0.5, "No AR rho values", ha="center", va="center", fontsize=10)
+                ax.set_xlim(-1, 1)
+                ax.set_xticks([-1, 0, 1])
+                continue
+
+            sns.kdeplot(
+                rho_values,
+                fill=True,
+                common_norm=False,
+                alpha=0.45,
+                linewidth=1.5,
+                color="#F0B44D",
+                ax=ax
+            )
+            sns.kdeplot(
+                rho_values,
+                fill=False,
+                common_norm=False,
+                linewidth=2.0,
+                color="#D67500",
+                ax=ax
+            )
+
+            # overlay normal distribution curve centered at zero
+            mu = 0.0
+            sigma = rho_values.std(ddof=0)
+            xs = np.linspace(-1, 1, 400)
+            if sigma > 0:
+                normal_pdf = norm.pdf(xs, loc=mu, scale=sigma)
+                ax.plot(
+                    xs,
+                    normal_pdf,
+                    color="#3B3B3B",
+                    linestyle="--",
+                    linewidth=1.2,
+                    alpha=0.45,
+                    label="normal (mean=0)"
                 )
 
-                # significant points
-                sig = ss[ss[sigcol] < alpha].copy()
-                if len(sig) > 0:
-                    ax.scatter(
-                        sig["rho"],
-                        sig[ycol],
-                        s=36,
-                        alpha=0.95,
-                        color=palette[grp],
-                        edgecolor="none",
-                        linewidth=0.4
-                    )
-
-                # label top genes
-                cand = ss[
-                    (ss[sigcol] < alpha) &
-                    (ss["rho"].abs() >= min_abs_rho_for_label)
-                ].copy()
-
-                if len(cand) > 0:
-                    cand = cand.sort_values([ycol, "rho"], ascending=[False, False])
-                    cand = cand.head(label_top_n)
-
-                    for _, r in cand.iterrows():
-                        ax.text(
-                            r["rho"], r[ycol], r["gene"],
-                            fontsize=8, alpha=0.9
-                        )
-
-            ax.axvline(0, color="gray", linestyle="--", linewidth=1, alpha=0.7)
-            ax.axhline(-np.log10(alpha), color="gray", linestyle=":", linewidth=1, alpha=0.7)
+            med = rho_values.median()
+            ax.axvline(med, color="#8C4B00", linestyle="--", linewidth=1.2, alpha=0.9)
+            ax.text(0.98, 0.88, f"median={med:.2f}", transform=ax.transAxes,
+                    ha="right", va="top", fontsize=8)
 
             ax.set_title(title_map[(expr_type, score_type)], fontsize=11)
-            ax.grid(alpha=0.2)
-
-    for ax in axes[1, :]:
-        ax.set_xlabel("Spearman rho")
+            ax.grid(alpha=0.18)
+            ax.set_xlim(-1, 1)
+            ax.set_xticks([-1, 0, 1])
 
     for ax in axes[:, 0]:
-        ax.set_ylabel("-log10(FDR)" if use_fdr else "-log10(p-value)")
+        ax.set_ylabel("Density")
 
-    # handles, labels = axes[0, 0].get_legend_handles_labels()
-    # if handles:
-    #     axes[0, 0].legend(handles, labels, frameon=False, loc="upper right")
+    for ax in axes[2, :]:
+        ax.set_xlabel("Spearman rho")
 
-    sns.despine()
+    sns.despine(trim=True)
     plt.tight_layout()
 
     if save_path:
@@ -3291,15 +3832,12 @@ volcano_df.head()
 
 plot_sf_gene_volcano_panel(
     volcano_df,
-    use_fdr=False,      # 먼저 p-value로 보고
-    alpha=0.05,
-    label_top_n=3,
-    min_abs_rho_for_label=0.4,
     figsize=(7, 8),
     save_path=None
 )
 
 #%%
+##^^ venn for pre vs delta significant genes
 def get_sig_genes(df, group, expr_type, score_type, alpha=0.05):
     sub = df[
         (df["group"] == group) &
@@ -3678,6 +4216,544 @@ G_core = plot_corr_network(
     font_size=8
 )
 
+
+#%%
+###^^ heatmap for various variables --> kdeplot --> violinplot ##########
+
+###^^ Pre * Post Correlation Heatmap (AR/IR) ##########
+
+def load_psi_data(file_path):
+    """PSI 파일 로드"""
+    try:
+        df = pd.read_csv(file_path, sep="\t", index_col=0)
+        return df
+    except:
+        print(f"Could not load {file_path}")
+        return None
+
+
+def compute_prepost_sample_corr(pre_data, post_data, feature_list, samples, method="spearman"):
+    """
+    feature_list를 feature 축으로 사용해서
+    pre sample x post sample correlation matrix를 계산한다.
+    """
+    samples_valid = [s for s in samples if s in pre_data.columns and s in post_data.columns]
+    features_valid = [f for f in feature_list if f in pre_data.index and f in post_data.index]
+
+    if len(samples_valid) == 0 or len(features_valid) < 2:
+        return None, samples_valid, features_valid
+
+    pre_sub = pre_data.loc[features_valid, samples_valid]
+    post_sub = post_data.loc[features_valid, samples_valid]
+
+    pre_labels = [f"{s} (pre)" for s in samples_valid]
+    post_labels = [f"{s} (post)" for s in samples_valid]
+
+    combined = pd.concat([pre_sub.T, post_sub.T], axis=0)
+    combined.index = pre_labels + post_labels
+
+    corr_all = combined.T.corr(method=method)
+    corr_matrix = corr_all.loc[pre_labels, post_labels]
+
+    return corr_matrix, samples_valid, features_valid
+
+
+def plot_prepost_sample_corr_heatmap(
+    pre_data, post_data,
+    feature_list,
+    samples,
+    group_name,
+    feature_name,
+    ax,
+    is_first=False,
+    method="spearman"
+):
+    corr_matrix, samples_valid, features_valid = compute_prepost_sample_corr(
+        pre_data=pre_data,
+        post_data=post_data,
+        feature_list=feature_list,
+        samples=samples,
+        method=method
+    )
+
+    if corr_matrix is None or corr_matrix.empty:
+        ax.set_axis_off()
+        return False
+
+    corr_label = "Spearman ρ" if method == "spearman" else "Pearson r"
+
+    sns.heatmap(
+        corr_matrix,
+        annot=False,
+        cmap="coolwarm",
+        center=0,
+        vmin=-1,
+        vmax=1,
+        ax=ax,
+        linewidths=0.2,
+        linecolor="white",
+        square=True,
+        cbar_kws={"label": corr_label}
+    )
+    ax.set_title(f"{feature_name}: {group_name} (n={len(samples_valid)}, n_feat={len(features_valid)})", fontsize=11)
+    ax.set_xlabel("Post samples")
+    if is_first:
+        ax.set_ylabel("Pre samples")
+    plt.setp(ax.get_xticklabels(), rotation=45, ha="right", fontsize=7)
+    plt.setp(ax.get_yticklabels(), rotation=0, fontsize=7)
+    return True
+
+
+def plot_groupwise_prepost_corr_figure(
+    ar_pre_data, ar_post_data, ar_features,
+    ir_pre_data, ir_post_data, ir_features,
+    ar_samples, ir_samples,
+    title,
+    feature_name,
+    save_path,
+    figsize=(11, 6),
+    method="spearman"
+):
+    ar_corr, ar_samples_valid, ar_features_valid = compute_prepost_sample_corr(
+        pre_data=ar_pre_data,
+        post_data=ar_post_data,
+        feature_list=ar_features,
+        samples=ar_samples,
+        method=method
+    )
+    ir_corr, ir_samples_valid, ir_features_valid = compute_prepost_sample_corr(
+        pre_data=ir_pre_data,
+        post_data=ir_post_data,
+        feature_list=ir_features,
+        samples=ir_samples,
+        method=method
+    )
+
+    if ar_corr is None and ir_corr is None:
+        return
+
+    valid_sizes = [m.shape[0] for m in [ar_corr, ir_corr] if m is not None and not m.empty]
+    if len(valid_sizes) == 0:
+        return
+
+    max_n = max(valid_sizes)
+
+    def _pad_corr_matrix(corr_matrix, target_n):
+        if corr_matrix is None or corr_matrix.empty:
+            return None
+        padded = pd.DataFrame(
+            np.nan,
+            index=range(target_n),
+            columns=range(target_n)
+        )
+        n_row, n_col = corr_matrix.shape
+        padded.iloc[:n_row, :n_col] = corr_matrix.values
+        return padded
+
+    ar_corr_pad = _pad_corr_matrix(ar_corr, max_n)
+    ir_corr_pad = _pad_corr_matrix(ir_corr, max_n)
+
+    spacer = pd.DataFrame(np.nan, index=range(max_n), columns=range(2))
+    blocks = []
+    block_labels = []
+    current_start = 0
+
+    if ar_corr_pad is not None:
+        blocks.append(ar_corr_pad)
+        block_labels.append(("AR", current_start, current_start + ar_corr_pad.shape[1]))
+        current_start += ar_corr_pad.shape[1]
+
+    if ar_corr_pad is not None and ir_corr_pad is not None:
+        blocks.append(spacer)
+        current_start += spacer.shape[1]
+
+    if ir_corr_pad is not None:
+        blocks.append(ir_corr_pad)
+        block_labels.append(("IR", current_start, current_start + ir_corr_pad.shape[1]))
+
+    combined_corr = pd.concat(blocks, axis=1)
+
+    cmap = matplotlib.colormaps["coolwarm"].copy()
+    cmap.set_bad("white")
+
+    fig = plt.figure(figsize=figsize)
+    gs = fig.add_gridspec(
+        1, 2,
+        width_ratios=[1, 0.06],
+        wspace=0.06
+    )
+    ax_heat = fig.add_subplot(gs[0, 0])
+    ax_cbar = fig.add_subplot(gs[0, 1])
+
+    corr_label = "Spearman ρ" if method == "spearman" else "Pearson r"
+
+    sns.heatmap(
+        combined_corr,
+        annot=False,
+        cmap=cmap,
+        center=0,
+        vmin=-1,
+        vmax=1,
+        mask=combined_corr.isna(),
+        ax=ax_heat,
+        cbar_ax=ax_cbar,
+        cbar_kws={"label": corr_label},
+        linewidths=0.2,
+        linecolor="white",
+        square=True,
+        xticklabels=False,
+        yticklabels=False
+    )
+
+    ax_heat.tick_params(
+        axis="both",
+        which="both",
+        bottom=False,
+        top=False,
+        left=False,
+        right=False,
+        labelbottom=False,
+        labelleft=False,
+        length=0
+    )
+    ax_heat.set_xlabel("")
+    ax_heat.set_ylabel("")
+
+    meta_map = {
+        "AR": (len(ar_samples_valid), len(ar_features_valid)),
+        "IR": (len(ir_samples_valid), len(ir_features_valid))
+    }
+    for label, start, end in block_labels:
+        center = (start + end) / 2
+        n_samples, n_features = meta_map[label]
+        ax_heat.text(
+            center,
+            -0.8,
+            f"{label} (n={n_samples}, n_feat={n_features})",
+            ha="center",
+            va="bottom",
+            fontsize=11,
+            clip_on=False
+        )
+
+    fig.suptitle(title, fontsize=13, y=0.98)
+    fig.savefig(save_path, dpi=300, bbox_inches="tight")
+    plt.show()
+
+
+def plot_groupwise_prepost_corr_rho_kde(
+    ar_pre_data, ar_post_data, ar_features,
+    ir_pre_data, ir_post_data, ir_features,
+    ar_samples, ir_samples,
+    title,
+    save_path,
+    figsize=(6, 4.5),
+    method="spearman"
+):
+    ar_corr, ar_samples_valid, ar_features_valid = compute_prepost_sample_corr(
+        pre_data=ar_pre_data,
+        post_data=ar_post_data,
+        feature_list=ar_features,
+        samples=ar_samples,
+        method=method
+    )
+    ir_corr, ir_samples_valid, ir_features_valid = compute_prepost_sample_corr(
+        pre_data=ir_pre_data,
+        post_data=ir_post_data,
+        feature_list=ir_features,
+        samples=ir_samples,
+        method=method
+    )
+
+    def _flatten_corr_values(corr_matrix):
+        if corr_matrix is None or corr_matrix.empty:
+            return np.array([])
+        values = corr_matrix.to_numpy().reshape(-1)
+        return values[~np.isnan(values)]
+
+    corr_label = "Spearman ρ" if method == "spearman" else "Pearson r"
+    palette = {"AR": "#FF8D29", "IR": "#8AC509"}
+    x_min, x_max = -0.25, 1.0
+    group_specs = [
+        ("AR", _flatten_corr_values(ar_corr), len(ar_samples_valid), len(ar_features_valid)),
+        ("IR", _flatten_corr_values(ir_corr), len(ir_samples_valid), len(ir_features_valid))
+    ]
+
+    fig, ax = plt.subplots(figsize=figsize)
+    ymax_candidates = []
+
+    for group_name, rho_values, n_samples, n_features in group_specs:
+        if rho_values.size == 0:
+            continue
+
+        unique_vals = np.unique(np.round(rho_values, 12))
+        if unique_vals.size >= 2:
+            sns.kdeplot(
+                rho_values,
+                fill=True,
+                common_norm=False,
+                alpha=0.28,
+                linewidth=1.5,
+                color=palette[group_name],
+                ax=ax,
+                clip=(x_min, x_max),
+                warn_singular=False,
+                label=group_name
+            )
+            sns.kdeplot(
+                rho_values,
+                fill=False,
+                common_norm=False,
+                linewidth=2.0,
+                color=palette[group_name],
+                ax=ax,
+                clip=(x_min, x_max),
+                warn_singular=False
+            )
+            ymax_candidates.append(ax.get_ylim()[1])
+        else:
+            ax.axvline(rho_values[0], color=palette[group_name], linewidth=2.0, alpha=0.85, label=group_name)
+            ymax_candidates.append(1.0)
+
+        med = float(np.median(rho_values))
+        ax.axvline(med, color=palette[group_name], linestyle="--", linewidth=1.3, alpha=0.9)
+        ax.text(
+            0.02,
+            0.96 if group_name == "AR" else 0.86,
+            f"{group_name} median={med:.2f}",
+            transform=ax.transAxes,
+            ha="left",
+            va="top",
+            fontsize=8
+        )
+    if not ymax_candidates:
+        ax.text(0.5, 0.5, "No correlation data", ha="center", va="center", fontsize=10)
+        ax.set_ylim(0, 1)
+
+    ax.axvline(0, color="gray", linestyle="-", linewidth=1.0, alpha=0.25, zorder=0)
+    ax.set_xlim(x_min, x_max)
+    ax.set_xlabel(corr_label)
+    ax.set_ylabel("Density")
+    ax.grid(alpha=0.18)
+    ax.legend(frameon=False)
+
+    fig.suptitle(title, fontsize=13, y=1.02)
+    sns.despine(trim=True)
+    plt.tight_layout()
+
+    if save_path is not None:
+        fig.savefig(save_path, dpi=300, bbox_inches="tight")
+    plt.show()
+
+
+def plot_groupwise_prepost_corr_rho_violin(
+    ar_pre_data, ar_post_data, ar_features,
+    ir_pre_data, ir_post_data, ir_features,
+    ar_samples, ir_samples,
+    title,
+    save_path,
+    figsize=(4.8, 4.8),
+    method="spearman"
+):
+    ar_corr, ar_samples_valid, ar_features_valid = compute_prepost_sample_corr(
+        pre_data=ar_pre_data,
+        post_data=ar_post_data,
+        feature_list=ar_features,
+        samples=ar_samples,
+        method=method
+    )
+    ir_corr, ir_samples_valid, ir_features_valid = compute_prepost_sample_corr(
+        pre_data=ir_pre_data,
+        post_data=ir_post_data,
+        feature_list=ir_features,
+        samples=ir_samples,
+        method=method
+    )
+
+    def _flatten_corr_values(corr_matrix):
+        if corr_matrix is None or corr_matrix.empty:
+            return np.array([])
+        values = corr_matrix.to_numpy().reshape(-1)
+        return values[~np.isnan(values)]
+
+    ar_rho = _flatten_corr_values(ar_corr)
+    ir_rho = _flatten_corr_values(ir_corr)
+    corr_label = "Spearman ρ" if method == "spearman" else "Pearson r"
+    palette = {"AR": "#FF8D29", "IR": "#8AC509"}
+
+    plot_df = pd.DataFrame(
+        {
+            "Group": (["AR"] * len(ar_rho)) + (["IR"] * len(ir_rho)),
+            "Correlation": np.concatenate([ar_rho, ir_rho]) if (len(ar_rho) + len(ir_rho)) > 0 else np.array([])
+        }
+    )
+
+    fig, ax = plt.subplots(figsize=figsize)
+
+    if plot_df.empty:
+        ax.text(0.5, 0.5, "No correlation data", ha="center", va="center", fontsize=10)
+        ax.set_axis_off()
+    else:
+        sns.violinplot(
+            data=plot_df,
+            x="Group",
+            y="Correlation",
+            order=["AR", "IR"],
+            palette=palette,
+            ax=ax
+        )
+        ax.axhline(0, color="gray", linestyle="-", linewidth=1.0, alpha=0.25, zorder=0)
+        ax.set_xlabel("")
+        ax.set_ylabel(corr_label)
+        ax.set_title(
+            f"{title}\nAR n={len(ar_samples_valid)}, IR n={len(ir_samples_valid)}"
+            f"\nAR feat={len(ar_features_valid)}, IR feat={len(ir_features_valid)}",
+            fontsize=12
+        )
+        ax.grid(axis="y", alpha=0.18)
+
+    sns.despine(trim=True)
+    plt.tight_layout()
+
+    if save_path is not None:
+        fig.savefig(save_path, dpi=300, bbox_inches="tight")
+    plt.show()
+
+
+def build_correlation_heatmap_prepost(
+    pre_gene, post_gene,
+    pre_TU_gene, post_TU_gene,
+    class1_list, class3_list,
+    ar_dut_list, ir_dut_list,
+    psi_dict,
+    sampleinfo,
+    sf_gene_list=None,
+    response_col="response",
+    figsize=(12, 5),
+    save_dir="/home/jiye/jiye/copycomparison/GENCODEquant/figures"
+):
+    """
+    각 변수별로 별도의 figure로
+    pre sample x post sample correlation heatmap 생성 (AR/IR 좌우).
+    
+    Variables:
+    - SF gene expression (pre/post)
+    - Class1 DUT TU score (pre/post)
+    - Class3 DUT TU score (pre/post)
+    - PSI (pre/post)
+    """
+    
+    ar_samples = sampleinfo[sampleinfo[response_col] == 1].index.tolist()
+    ir_samples = sampleinfo[sampleinfo[response_col] == 0].index.tolist()
+    
+    # ================= 1) SF Gene Expression =================
+    sf_features = sorted(
+        set(sf_gene_list if sf_gene_list is not None else SF_genes)
+        & set(pre_gene.index)
+        & set(post_gene.index)
+    )
+    if len(sf_features) > 1:
+        fig, axes = plt.subplots(1, 2, figsize=figsize)
+        
+        for grp_idx, (samples, grp_name) in enumerate([(ar_samples, "AR"), (ir_samples, "IR")]):
+            plot_prepost_sample_corr_heatmap(
+                pre_data=pre_gene,
+                post_data=post_gene,
+                feature_list=sf_features,
+                samples=samples,
+                group_name=grp_name,
+                feature_name="SF Genes",
+                ax=axes[grp_idx],
+                is_first=(grp_idx == 0)
+            )
+        
+        plt.suptitle("SF Gene Correlation: Pre vs Post", fontsize=12, y=1.02)
+        plt.tight_layout()
+        plt.savefig(f"{save_dir}/prepost_corr_SF_genes.pdf", dpi=300, bbox_inches="tight")
+        plt.show()
+    
+    # ================= 2) Class1 DUT =================
+    class1_dut = list(set(class1_list) & (set(ar_dut_list) | set(ir_dut_list)) & set(pre_TU_gene.index))
+    if len(class1_dut) > 0:
+        fig, axes = plt.subplots(1, 2, figsize=figsize)
+        
+        for grp_idx, (samples, grp_name) in enumerate([(ar_samples, "AR"), (ir_samples, "IR")]):
+            plot_prepost_sample_corr_heatmap(
+                pre_data=pre_TU_gene,
+                post_data=post_TU_gene,
+                feature_list=class1_dut,
+                samples=samples,
+                group_name=grp_name,
+                feature_name="Class1 DUT",
+                ax=axes[grp_idx],
+                is_first=(grp_idx == 0)
+            )
+        
+        plt.suptitle("Class1 DUT: Pre vs Post", fontsize=12, y=1.02)
+        plt.tight_layout()
+        plt.savefig(f"{save_dir}/prepost_corr_Class1_DUT.pdf", dpi=300, bbox_inches="tight")
+        plt.show()
+    
+    # ================= 3) Class3 DUT =================
+    class3_dut = list(set(class3_list) & (set(ar_dut_list) | set(ir_dut_list)) & set(pre_TU_gene.index))
+    if len(class3_dut) > 0:
+        fig, axes = plt.subplots(1, 2, figsize=figsize)
+        
+        for grp_idx, (samples, grp_name) in enumerate([(ar_samples, "AR"), (ir_samples, "IR")]):
+            plot_prepost_sample_corr_heatmap(
+                pre_data=pre_TU_gene,
+                post_data=post_TU_gene,
+                feature_list=class3_dut,
+                samples=samples,
+                group_name=grp_name,
+                feature_name="Class3 DUT",
+                ax=axes[grp_idx],
+                is_first=(grp_idx == 0)
+            )
+        
+        plt.suptitle("Class3 DUT: Pre vs Post", fontsize=12, y=1.02)
+        plt.tight_layout()
+        plt.savefig(f"{save_dir}/prepost_corr_Class3_DUT.pdf", dpi=300, bbox_inches="tight")
+        plt.show()
+    
+    # ================= 4) PSI =================
+    for psi_name, psi_df in psi_dict.items():
+        if psi_df is not None and psi_df.shape[0] > 0:
+            fig, axes = plt.subplots(1, 2, figsize=figsize)
+            
+            for grp_idx, (samples, grp_name) in enumerate([(ar_samples, "AR"), (ir_samples, "IR")]):
+                samples_valid = [s for s in samples if s in psi_df.columns]
+                if len(samples_valid) > 1:
+                    psi_sub = psi_df.loc[:, samples_valid].T  # (n_samples, n_events)
+                    
+                    # Use pre/post split from sample naming if available
+                    # Otherwise just correlate across samples
+                    if psi_sub.shape[1] > 0:
+                        # Simple correlation across events (each event with each event)
+                        corr_matrix = psi_sub.corr()
+                        
+                        sns.heatmap(
+                            corr_matrix,
+                            annot=False,
+                            cmap="coolwarm",
+                            center=0,
+                            vmin=-1, vmax=1,
+                            cbar_kws={"label": "Correlation"},
+                            ax=axes[grp_idx],
+                            linewidths=0.1,
+                            linecolor="gray",
+                            cbar=(grp_idx == 1)
+                        )
+                        axes[grp_idx].set_title(f"{psi_name}: {grp_name} (n={len(samples_valid)})", fontsize=11)
+                        axes[grp_idx].set_xlabel(f"Events ({psi_sub.shape[1]})")
+                        if grp_idx == 0:
+                            axes[grp_idx].set_ylabel(f"Events ({psi_sub.shape[1]})")
+            
+            plt.suptitle(f"PSI ({psi_name}): Event correlations", fontsize=12, y=1.02)
+            plt.tight_layout()
+            plt.savefig(f"{save_dir}/prepost_corr_{psi_name}.pdf", dpi=300, bbox_inches="tight")
+            plt.show()
+
 #%%
 ##^^ PSI ############# 
 
@@ -3854,6 +4930,281 @@ psi_pre_ri, psi_post_ri = filter_and_impute_psi(
 print("after filtering")
 print("psi_pre_ri :", psi_pre_ri.shape)
 print("psi_post_ri:", psi_post_ri.shape)
+
+SUPPA_EVENT_TYPES = ["A3", "A5", "AF", "AL", "MX", "RI", "SE"]
+SUPPA_BASE_DIR = "/home/jiye/jiye/copycomparison/GENCODEquant/SEV_prepost/suppaoutput"
+
+
+def build_suppa_psi_path(group_name, time_label, event_type):
+    return (
+        f"{SUPPA_BASE_DIR}/{group_name}/"
+        f"{group_name}_{time_label}-suppaevent_{event_type}_variable_10.ioe.psi"
+    )
+
+
+def load_combined_suppa_event_matrix(group_name, time_label, event_types=SUPPA_EVENT_TYPES):
+    event_mats = []
+    for event_type in event_types:
+        event_mats.append(read_suppa_psi_matrix(build_suppa_psi_path(group_name, time_label, event_type)))
+
+    combined = pd.concat(event_mats, axis=0)
+    if not combined.index.is_unique:
+        combined = combined.groupby(combined.index).mean()
+    return combined
+
+
+def prepare_sig_psi_group_matrices(psi_pre, psi_post, sig_event_ids, min_valid_frac=0.8):
+    psi_pre = psi_pre.copy()
+    psi_post = psi_post.copy()
+
+    psi_pre.columns = (
+        psi_pre.columns.astype(str)
+        .str.replace("-bfD", "", regex=False)
+        .str.replace("-atD", "", regex=False)
+    )
+    psi_post.columns = (
+        psi_post.columns.astype(str)
+        .str.replace("-bfD", "", regex=False)
+        .str.replace("-atD", "", regex=False)
+    )
+
+    common_events = psi_pre.index.intersection(psi_post.index).intersection(pd.Index(sig_event_ids))
+    psi_pre = psi_pre.loc[common_events].copy()
+    psi_post = psi_post.loc[common_events].copy()
+
+    common_samples = psi_pre.columns.intersection(psi_post.columns)
+    psi_pre = psi_pre.loc[:, common_samples].copy()
+    psi_post = psi_post.loc[:, common_samples].copy()
+
+    return filter_and_impute_psi(psi_pre, psi_post, min_valid_frac=min_valid_frac)
+
+
+ar_sig_event_ids = sorted(ar_psi["event_id"].dropna().unique().tolist())
+ir_sig_event_ids = sorted(ir_psi["event_id"].dropna().unique().tolist())
+ar_sig_ri_event_ids = sorted(ar_psi.loc[ar_psi["event"] == "RI", "event_id"].dropna().unique().tolist())
+ir_sig_ri_event_ids = sorted(ir_psi.loc[ir_psi["event"] == "RI", "event_id"].dropna().unique().tolist())
+sig_event_union_ids = sorted(set(ar_sig_event_ids) | set(ir_sig_event_ids))
+sig_ri_event_union_ids = sorted(set(ar_sig_ri_event_ids) | set(ir_sig_ri_event_ids))
+
+all_ar_pre = load_combined_suppa_event_matrix("AR", "pre")
+all_ar_post = load_combined_suppa_event_matrix("AR", "post")
+all_ir_pre = load_combined_suppa_event_matrix("IR", "pre")
+all_ir_post = load_combined_suppa_event_matrix("IR", "post")
+
+psi_pre_all_ar, psi_post_all_ar = prepare_sig_psi_group_matrices(
+    all_ar_pre, all_ar_post, sig_event_union_ids, min_valid_frac=0.8
+)
+psi_pre_all_ir, psi_post_all_ir = prepare_sig_psi_group_matrices(
+    all_ir_pre, all_ir_post, sig_event_union_ids, min_valid_frac=0.8
+)
+
+psi_pre_ri_ar, psi_post_ri_ar = prepare_sig_psi_group_matrices(
+    ri_ar_pre, ri_ar_post, sig_ri_event_union_ids, min_valid_frac=0.8
+)
+psi_pre_ri_ir, psi_post_ri_ir = prepare_sig_psi_group_matrices(
+    ri_ir_pre, ri_ir_post, sig_ri_event_union_ids, min_valid_frac=0.8
+)
+
+ar_samples_sorted = sorted(sampleinfo[sampleinfo["response"] == 1].index.tolist())
+ir_samples_sorted = sorted(sampleinfo[sampleinfo["response"] == 0].index.tolist())
+
+sf_features = sorted(set(SF_genes) & set(pre_gene.index) & set(post_gene.index))
+class1_dut_union_features = sorted(
+    (set(ar_tx_class1) | set(ir_tx_class1)) & set(pre_TU_gene.index) & set(post_TU_gene.index)
+)
+class3_dut_union_features = sorted(
+    (set(ar_tx_class3) | set(ir_tx_class3)) & set(pre_TU_gene.index) & set(post_TU_gene.index)
+)
+
+plot_groupwise_prepost_corr_figure(
+    ar_pre_data=pre_gene,
+    ar_post_data=post_gene,
+    ar_features=sf_features,
+    ir_pre_data=pre_gene,
+    ir_post_data=post_gene,
+    ir_features=sf_features,
+    ar_samples=ar_samples_sorted,
+    ir_samples=ir_samples_sorted,
+    title="SF Gene Correlation: Pre vs Post",
+    feature_name="SF Genes",
+    save_path="/home/jiye/jiye/copycomparison/GENCODEquant/figures/prepost_heatmap_SF_genes.pdf"
+)
+plot_groupwise_prepost_corr_rho_kde(
+    ar_pre_data=pre_gene,
+    ar_post_data=post_gene,
+    ar_features=sf_features,
+    ir_pre_data=pre_gene,
+    ir_post_data=post_gene,
+    ir_features=sf_features,
+    ar_samples=ar_samples_sorted,
+    ir_samples=ir_samples_sorted,
+    title="SF Gene Spearman ρ Distribution",
+    save_path="/home/jiye/jiye/copycomparison/GENCODEquant/figures/prepost_rho_kde_SF_genes.pdf"
+)
+plot_groupwise_prepost_corr_rho_violin(
+    ar_pre_data=pre_gene,
+    ar_post_data=post_gene,
+    ar_features=sf_features,
+    ir_pre_data=pre_gene,
+    ir_post_data=post_gene,
+    ir_features=sf_features,
+    ar_samples=ar_samples_sorted,
+    ir_samples=ir_samples_sorted,
+    title="SF Gene Spearman ρ Violin Plot",
+    save_path="/home/jiye/jiye/copycomparison/GENCODEquant/figures/prepost_rho_violin_SF_genes.pdf"
+)
+
+plot_groupwise_prepost_corr_figure(
+    ar_pre_data=pre_TU_gene,
+    ar_post_data=post_TU_gene,
+    ar_features=class1_dut_union_features,
+    ir_pre_data=pre_TU_gene,
+    ir_post_data=post_TU_gene,
+    ir_features=class1_dut_union_features,
+    ar_samples=ar_samples_sorted,
+    ir_samples=ir_samples_sorted,
+    title="Class1 DUT Correlation: Pre vs Post",
+    feature_name="Class1 DUT",
+    save_path="/home/jiye/jiye/copycomparison/GENCODEquant/figures/prepost_heatmap_Class1_DUT.pdf"
+)
+plot_groupwise_prepost_corr_rho_kde(
+    ar_pre_data=pre_TU_gene,
+    ar_post_data=post_TU_gene,
+    ar_features=class1_dut_union_features,
+    ir_pre_data=pre_TU_gene,
+    ir_post_data=post_TU_gene,
+    ir_features=class1_dut_union_features,
+    ar_samples=ar_samples_sorted,
+    ir_samples=ir_samples_sorted,
+    title="Class1 DUT Spearman ρ Distribution",
+    save_path="/home/jiye/jiye/copycomparison/GENCODEquant/figures/prepost_rho_kde_Class1_DUT.pdf"
+)
+plot_groupwise_prepost_corr_rho_violin(
+    ar_pre_data=pre_TU_gene,
+    ar_post_data=post_TU_gene,
+    ar_features=class1_dut_union_features,
+    ir_pre_data=pre_TU_gene,
+    ir_post_data=post_TU_gene,
+    ir_features=class1_dut_union_features,
+    ar_samples=ar_samples_sorted,
+    ir_samples=ir_samples_sorted,
+    title="Class1 DUT Spearman ρ Violin Plot",
+    save_path="/home/jiye/jiye/copycomparison/GENCODEquant/figures/prepost_rho_violin_Class1_DUT.pdf"
+)
+
+plot_groupwise_prepost_corr_figure(
+    ar_pre_data=pre_TU_gene,
+    ar_post_data=post_TU_gene,
+    ar_features=class3_dut_union_features,
+    ir_pre_data=pre_TU_gene,
+    ir_post_data=post_TU_gene,
+    ir_features=class3_dut_union_features,
+    ar_samples=ar_samples_sorted,
+    ir_samples=ir_samples_sorted,
+    title="Class3 DUT Correlation: Pre vs Post",
+    feature_name="Class3 DUT",
+    save_path="/home/jiye/jiye/copycomparison/GENCODEquant/figures/prepost_heatmap_Class3_DUT.pdf"
+)
+plot_groupwise_prepost_corr_rho_kde(
+    ar_pre_data=pre_TU_gene,
+    ar_post_data=post_TU_gene,
+    ar_features=class3_dut_union_features,
+    ir_pre_data=pre_TU_gene,
+    ir_post_data=post_TU_gene,
+    ir_features=class3_dut_union_features,
+    ar_samples=ar_samples_sorted,
+    ir_samples=ir_samples_sorted,
+    title="Class3 DUT Spearman ρ Distribution",
+    save_path="/home/jiye/jiye/copycomparison/GENCODEquant/figures/prepost_rho_kde_Class3_DUT.pdf"
+)
+plot_groupwise_prepost_corr_rho_violin(
+    ar_pre_data=pre_TU_gene,
+    ar_post_data=post_TU_gene,
+    ar_features=class3_dut_union_features,
+    ir_pre_data=pre_TU_gene,
+    ir_post_data=post_TU_gene,
+    ir_features=class3_dut_union_features,
+    ar_samples=ar_samples_sorted,
+    ir_samples=ir_samples_sorted,
+    title="Class3 DUT Spearman ρ Violin Plot",
+    save_path="/home/jiye/jiye/copycomparison/GENCODEquant/figures/prepost_rho_violin_Class3_DUT.pdf"
+)
+
+plot_groupwise_prepost_corr_figure(
+    ar_pre_data=psi_pre_all_ar,
+    ar_post_data=psi_post_all_ar,
+    ar_features=sig_event_union_ids,
+    ir_pre_data=psi_pre_all_ir,
+    ir_post_data=psi_post_all_ir,
+    ir_features=sig_event_union_ids,
+    ar_samples=ar_samples_sorted,
+    ir_samples=ir_samples_sorted,
+    title="Significant PSI Correlation: Pre vs Post",
+    feature_name="Significant PSI",
+    save_path="/home/jiye/jiye/copycomparison/GENCODEquant/figures/prepost_heatmap_Sig_PSI_events.pdf"
+)
+plot_groupwise_prepost_corr_rho_kde(
+    ar_pre_data=psi_pre_all_ar,
+    ar_post_data=psi_post_all_ar,
+    ar_features=sig_event_union_ids,
+    ir_pre_data=psi_pre_all_ir,
+    ir_post_data=psi_post_all_ir,
+    ir_features=sig_event_union_ids,
+    ar_samples=ar_samples_sorted,
+    ir_samples=ir_samples_sorted,
+    title="Significant PSI Spearman ρ Distribution",
+    save_path="/home/jiye/jiye/copycomparison/GENCODEquant/figures/prepost_rho_kde_Sig_PSI_events.pdf"
+)
+plot_groupwise_prepost_corr_rho_violin(
+    ar_pre_data=psi_pre_all_ar,
+    ar_post_data=psi_post_all_ar,
+    ar_features=sig_event_union_ids,
+    ir_pre_data=psi_pre_all_ir,
+    ir_post_data=psi_post_all_ir,
+    ir_features=sig_event_union_ids,
+    ar_samples=ar_samples_sorted,
+    ir_samples=ir_samples_sorted,
+    title="Significant PSI Spearman ρ Violin Plot",
+    save_path="/home/jiye/jiye/copycomparison/GENCODEquant/figures/prepost_rho_violin_Sig_PSI_events.pdf"
+)
+
+plot_groupwise_prepost_corr_figure(
+    ar_pre_data=psi_pre_ri_ar,
+    ar_post_data=psi_post_ri_ar,
+    ar_features=sig_ri_event_union_ids,
+    ir_pre_data=psi_pre_ri_ir,
+    ir_post_data=psi_post_ri_ir,
+    ir_features=sig_ri_event_union_ids,
+    ar_samples=ar_samples_sorted,
+    ir_samples=ir_samples_sorted,
+    title="Significant RI PSI Correlation: Pre vs Post",
+    feature_name="RI PSI",
+    save_path="/home/jiye/jiye/copycomparison/GENCODEquant/figures/prepost_heatmap_RI_PSI_events.pdf"
+)
+plot_groupwise_prepost_corr_rho_kde(
+    ar_pre_data=psi_pre_ri_ar,
+    ar_post_data=psi_post_ri_ar,
+    ar_features=sig_ri_event_union_ids,
+    ir_pre_data=psi_pre_ri_ir,
+    ir_post_data=psi_post_ri_ir,
+    ir_features=sig_ri_event_union_ids,
+    ar_samples=ar_samples_sorted,
+    ir_samples=ir_samples_sorted,
+    title="Significant RI PSI Spearman ρ Distribution",
+    save_path="/home/jiye/jiye/copycomparison/GENCODEquant/figures/prepost_rho_kde_RI_PSI_events.pdf"
+)
+plot_groupwise_prepost_corr_rho_violin(
+    ar_pre_data=psi_pre_ri_ar,
+    ar_post_data=psi_post_ri_ar,
+    ar_features=sig_ri_event_union_ids,
+    ir_pre_data=psi_pre_ri_ir,
+    ir_post_data=psi_post_ri_ir,
+    ir_features=sig_ri_event_union_ids,
+    ar_samples=ar_samples_sorted,
+    ir_samples=ir_samples_sorted,
+    title="Significant RI PSI Spearman ρ Violin Plot",
+    save_path="/home/jiye/jiye/copycomparison/GENCODEquant/figures/prepost_rho_violin_RI_PSI_events.pdf"
+)
 
 from scipy.special import logit
 from sklearn.decomposition import PCA
@@ -4232,6 +5583,7 @@ def plot_cluster_composition_stacked(cluster_counts, save_path=None):
     plt.show()
 
 plot_cluster_composition_stacked(cluster_counts, save_path="/home/jiye/jiye/copycomparison/GENCODEquant/SEV_prepost/merged_cov5_analysis/0210figures/gDUT_RIpsi_pca_kmeans_cluster_composition.pdf")
+
 #%%
 
 
@@ -4463,320 +5815,320 @@ def plot_pc1_distribution(pca_df, title):
 plot_pc1_distribution(pca_c1, "PC1 distribution – Class1")
 plot_pc1_distribution(pca_c3, "PC1 distribution – Class3")
 
-# %%
-###^^ umap + clustering ####
+# # %%
+# ###^^ umap + clustering ####
 
-import umap
+# import umap
 
-def run_umap_group_usage(
-    pre_TU_gene,
-    post_TU_gene,
-    ar_samples,
-    ir_samples,
-    tx_list,
-    title=""
-):
-    all_samples = list(ar_samples) + list(ir_samples)
+# def run_umap_group_usage(
+#     pre_TU_gene,
+#     post_TU_gene,
+#     ar_samples,
+#     ir_samples,
+#     tx_list,
+#     title=""
+# ):
+#     all_samples = list(ar_samples) + list(ir_samples)
 
-    pre = pre_TU_gene.loc[tx_list, all_samples]
-    post = post_TU_gene.loc[tx_list, all_samples]
+#     pre = pre_TU_gene.loc[tx_list, all_samples]
+#     post = post_TU_gene.loc[tx_list, all_samples]
 
-    pre.columns = [c+"_pre" for c in pre.columns]
-    post.columns = [c+"_post" for c in post.columns]
+#     pre.columns = [c+"_pre" for c in pre.columns]
+#     post.columns = [c+"_post" for c in post.columns]
 
-    combined = pd.concat([pre, post], axis=1)
+#     combined = pd.concat([pre, post], axis=1)
 
-    X = combined.T.dropna(axis=1) #fillna(0), dropna()
+#     X = combined.T.dropna(axis=1) #fillna(0), dropna()
 
-    X_scaled = StandardScaler().fit_transform(X)
+#     X_scaled = StandardScaler().fit_transform(X)
 
-    reducer = umap.UMAP(random_state=42)
-    embedding = reducer.fit_transform(X_scaled)
+#     reducer = umap.UMAP(random_state=42)
+#     embedding = reducer.fit_transform(X_scaled)
 
-    df = pd.DataFrame(embedding, columns=["UMAP1","UMAP2"], index=X.index)
+#     df = pd.DataFrame(embedding, columns=["UMAP1","UMAP2"], index=X.index)
 
-    base_sample = df.index.str.replace("_pre","").str.replace("_post","")
+#     base_sample = df.index.str.replace("_pre","").str.replace("_post","")
 
-    df["Group"] = np.where(base_sample.isin(ar_samples),"AR","IR")
-    df["Time"] = np.where(df.index.str.contains("_post"),"Post","Pre")
+#     df["Group"] = np.where(base_sample.isin(ar_samples),"AR","IR")
+#     df["Time"] = np.where(df.index.str.contains("_post"),"Post","Pre")
 
-    plt.figure(figsize=(6,5))
-    sns.scatterplot(
-        data=df,
-        x="UMAP1", y="UMAP2",
-        hue="Group",
-        style="Time",
-        palette={"AR":"#FFCC29","IR":"#81B214"},
-        s=90
-    )
+#     plt.figure(figsize=(6,5))
+#     sns.scatterplot(
+#         data=df,
+#         x="UMAP1", y="UMAP2",
+#         hue="Group",
+#         style="Time",
+#         palette={"AR":"#FFCC29","IR":"#81B214"},
+#         s=90
+#     )
 
-    # trajectory lines
-    for sample in all_samples:
-        pre_name = sample + "_pre"
-        post_name = sample + "_post"
-        if pre_name in df.index and post_name in df.index:
-            plt.plot(
-                [df.loc[pre_name,"UMAP1"], df.loc[post_name,"UMAP1"]],
-                [df.loc[pre_name,"UMAP2"], df.loc[post_name,"UMAP2"]],
-                color="grey", alpha=0.3
-            )
+#     # trajectory lines
+#     for sample in all_samples:
+#         pre_name = sample + "_pre"
+#         post_name = sample + "_post"
+#         if pre_name in df.index and post_name in df.index:
+#             plt.plot(
+#                 [df.loc[pre_name,"UMAP1"], df.loc[post_name,"UMAP1"]],
+#                 [df.loc[pre_name,"UMAP2"], df.loc[post_name,"UMAP2"]],
+#                 color="grey", alpha=0.3
+#             )
 
-    plt.title(title)
-    plt.tight_layout()
-    plt.show()
+#     plt.title(title)
+#     plt.tight_layout()
+#     plt.show()
 
-    return df
+#     return df
 
-df_class1 = run_umap_group_usage(
-    pre_TU_gene,
-    post_TU_gene,
-    ar_samples,
-    ir_samples,
-    tx_class1, #^ ranksig_c1_top300, cc_tx_class1, tx_class1
-    title="UMAP – ARdut ∩ Class1 (variance filtered)"
-)
+# df_class1 = run_umap_group_usage(
+#     pre_TU_gene,
+#     post_TU_gene,
+#     ar_samples,
+#     ir_samples,
+#     tx_class1, #^ ranksig_c1_top300, cc_tx_class1, tx_class1
+#     title="UMAP – ARdut ∩ Class1 (variance filtered)"
+# )
 
-df_class3 = run_umap_group_usage(
-    pre_TU_gene,
-    post_TU_gene,
-    ar_samples,
-    ir_samples,
-    tx_class3, #^ ranksig_c3_top300, hrr_tx_class3, tx_class3
-    title="UMAP – ARdut ∩ Class1 (variance filtered)"
-)
+# df_class3 = run_umap_group_usage(
+#     pre_TU_gene,
+#     post_TU_gene,
+#     ar_samples,
+#     ir_samples,
+#     tx_class3, #^ ranksig_c3_top300, hrr_tx_class3, tx_class3
+#     title="UMAP – ARdut ∩ Class1 (variance filtered)"
+# )
 
-def add_condition_cols(df):
-    df = df.copy()
-    df["Condition"] = df["Group"] + "_" + df["Time"]  # AR_Pre, AR_Post, IR_Pre, IR_Post
-    return df
+# def add_condition_cols(df):
+#     df = df.copy()
+#     df["Condition"] = df["Group"] + "_" + df["Time"]  # AR_Pre, AR_Post, IR_Pre, IR_Post
+#     return df
 
-from sklearn.cluster import KMeans
+# from sklearn.cluster import KMeans
 
-def cluster_umap(df, method="hdbscan", min_cluster_size=5, k=3, random_state=42):
-    """
-    df must have columns: UMAP1, UMAP2
-    Returns df with a new column 'Cluster' (int), noise = -1 for hdbscan.
-    """
-    df = df.copy()
-    X = df[["UMAP1", "UMAP2"]].values
+# def cluster_umap(df, method="hdbscan", min_cluster_size=5, k=3, random_state=42):
+#     """
+#     df must have columns: UMAP1, UMAP2
+#     Returns df with a new column 'Cluster' (int), noise = -1 for hdbscan.
+#     """
+#     df = df.copy()
+#     X = df[["UMAP1", "UMAP2"]].values
 
-    if method.lower() == "hdbscan":
-        try:
-            import hdbscan
-            clusterer = hdbscan.HDBSCAN(min_cluster_size=min_cluster_size)
-            labels = clusterer.fit_predict(X)
-        except ImportError:
-            print("hdbscan not installed -> fallback to kmeans")
-            labels = KMeans(n_clusters=k, random_state=random_state, n_init=10).fit_predict(X)
-    else:
-        labels = KMeans(n_clusters=k, random_state=random_state, n_init=10).fit_predict(X)
+#     if method.lower() == "hdbscan":
+#         try:
+#             import hdbscan
+#             clusterer = hdbscan.HDBSCAN(min_cluster_size=min_cluster_size)
+#             labels = clusterer.fit_predict(X)
+#         except ImportError:
+#             print("hdbscan not installed -> fallback to kmeans")
+#             labels = KMeans(n_clusters=k, random_state=random_state, n_init=10).fit_predict(X)
+#     else:
+#         labels = KMeans(n_clusters=k, random_state=random_state, n_init=10).fit_predict(X)
 
-    df["Cluster"] = labels
-    return df
+#     df["Cluster"] = labels
+#     return df
 
-def cluster_composition(df, cluster_col="Cluster", cond_col="Condition"):
-    """
-    Returns:
-      counts: cluster x condition
-      props : cluster x condition (row-normalized)
-    """
-    counts = pd.crosstab(df[cluster_col], df[cond_col])
+# def cluster_composition(df, cluster_col="Cluster", cond_col="Condition"):
+#     """
+#     Returns:
+#       counts: cluster x condition
+#       props : cluster x condition (row-normalized)
+#     """
+#     counts = pd.crosstab(df[cluster_col], df[cond_col])
 
-    # ensure consistent column order if present
-    desired = ["AR_Pre", "AR_Post", "IR_Pre", "IR_Post"]
-    cols = [c for c in desired if c in counts.columns] + [c for c in counts.columns if c not in desired]
-    counts = counts[cols]
+#     # ensure consistent column order if present
+#     desired = ["AR_Pre", "AR_Post", "IR_Pre", "IR_Post"]
+#     cols = [c for c in desired if c in counts.columns] + [c for c in counts.columns if c not in desired]
+#     counts = counts[cols]
 
-    props = counts.div(counts.sum(axis=1), axis=0)
-    return counts, props
+#     props = counts.div(counts.sum(axis=1), axis=0)
+#     return counts, props
 
-def add_progress_projection(df):
-    """
-    Adds df['Progress'] = projection onto vector (mean of all Post) - (mean of all Pre).
-    This is a simple pseudotime-like coordinate.
-    """
-    df = df.copy()
+# def add_progress_projection(df):
+#     """
+#     Adds df['Progress'] = projection onto vector (mean of all Post) - (mean of all Pre).
+#     This is a simple pseudotime-like coordinate.
+#     """
+#     df = df.copy()
 
-    pre_center  = df[df["Time"] == "Pre"][["UMAP1","UMAP2"]].mean().values
-    post_center = df[df["Time"] == "Post"][["UMAP1","UMAP2"]].mean().values
+#     pre_center  = df[df["Time"] == "Pre"][["UMAP1","UMAP2"]].mean().values
+#     post_center = df[df["Time"] == "Post"][["UMAP1","UMAP2"]].mean().values
 
-    v = post_center - pre_center
-    v_norm = np.linalg.norm(v)
-    if v_norm < 1e-12:
-        # degenerate case
-        df["Progress"] = df["UMAP1"].values
-        return df
+#     v = post_center - pre_center
+#     v_norm = np.linalg.norm(v)
+#     if v_norm < 1e-12:
+#         # degenerate case
+#         df["Progress"] = df["UMAP1"].values
+#         return df
 
-    v = v / v_norm
-    X = df[["UMAP1","UMAP2"]].values
-    df["Progress"] = (X - pre_center) @ v
-    return df
+#     v = v / v_norm
+#     X = df[["UMAP1","UMAP2"]].values
+#     df["Progress"] = (X - pre_center) @ v
+#     return df
 
-def order_clusters_by_progress(df, cluster_col="Cluster"):
-    """
-    Returns a DataFrame with cluster mean Progress (sorted) and size.
-    """
-    summary = (
-        df.groupby(cluster_col)
-          .agg(n=("Progress","size"), mean_progress=("Progress","mean"))
-          .sort_values("mean_progress")
-          .reset_index()
-    )
-    return summary
+# def order_clusters_by_progress(df, cluster_col="Cluster"):
+#     """
+#     Returns a DataFrame with cluster mean Progress (sorted) and size.
+#     """
+#     summary = (
+#         df.groupby(cluster_col)
+#           .agg(n=("Progress","size"), mean_progress=("Progress","mean"))
+#           .sort_values("mean_progress")
+#           .reset_index()
+#     )
+#     return summary
 
-import matplotlib.pyplot as plt
-import seaborn as sns
+# import matplotlib.pyplot as plt
+# import seaborn as sns
 
-def plot_umap_clusters(df, title="UMAP clusters"):
-    plt.figure(figsize=(6,5))
-    sns.scatterplot(data=df, x="UMAP1", y="UMAP2", hue="Cluster", palette="tab10", s=80)
-    plt.title(title)
-    plt.tight_layout()
-    plt.show()
+# def plot_umap_clusters(df, title="UMAP clusters"):
+#     plt.figure(figsize=(6,5))
+#     sns.scatterplot(data=df, x="UMAP1", y="UMAP2", hue="Cluster", palette="tab10", s=80)
+#     plt.title(title)
+#     plt.tight_layout()
+#     plt.show()
 
-def plot_cluster_composition_heatmap(props, title="Cluster composition (proportions)"):
-    plt.figure(figsize=(6,4))
-    sns.heatmap(props, annot=True, fmt=".2f", cmap="Blues")
-    plt.title(title)
-    plt.ylabel("Cluster")
-    plt.xlabel("Condition")
-    plt.tight_layout()
-    plt.show()
+# def plot_cluster_composition_heatmap(props, title="Cluster composition (proportions)"):
+#     plt.figure(figsize=(6,4))
+#     sns.heatmap(props, annot=True, fmt=".2f", cmap="Blues")
+#     plt.title(title)
+#     plt.ylabel("Cluster")
+#     plt.xlabel("Condition")
+#     plt.tight_layout()
+#     plt.show()
 
-import hdbscan
+# import hdbscan
 
-df = add_condition_cols(df_class1)
+# df = add_condition_cols(df_class1)
 
-# 1) cluster
-df = cluster_umap(df, method="hdbscan", min_cluster_size=5, k=3)
+# # 1) cluster
+# df = cluster_umap(df, method="hdbscan", min_cluster_size=5, k=3)
 
-# 2) add pseudotime-like progress coordinate
-df = add_progress_projection(df)
+# # 2) add pseudotime-like progress coordinate
+# df = add_progress_projection(df)
 
-# 3) composition
-counts, props = cluster_composition(df)
+# # 3) composition
+# counts, props = cluster_composition(df)
 
-print(counts)
-print(props)
+# print(counts)
+# print(props)
 
-# 4) order clusters by progress
-cluster_order = order_clusters_by_progress(df)
-print(cluster_order)
+# # 4) order clusters by progress
+# cluster_order = order_clusters_by_progress(df)
+# print(cluster_order)
 
-# 5) plots
-plot_umap_clusters(df, title="UMAP + Clusters")
-plot_cluster_composition_heatmap(props, title="Cluster composition (AR/IR × Pre/Post)")
+# # 5) plots
+# plot_umap_clusters(df, title="UMAP + Clusters")
+# plot_cluster_composition_heatmap(props, title="Cluster composition (AR/IR × Pre/Post)")
 
-# reorder props by cluster order
-ordered_clusters = cluster_order["Cluster"].tolist()
-props_ordered = props.loc[ordered_clusters]
+# # reorder props by cluster order
+# ordered_clusters = cluster_order["Cluster"].tolist()
+# props_ordered = props.loc[ordered_clusters]
 
-print(props_ordered)
-plot_cluster_composition_heatmap(props_ordered, title="Composition ordered by Progress")
+# print(props_ordered)
+# plot_cluster_composition_heatmap(props_ordered, title="Composition ordered by Progress")
 
-props_ordered = props_ordered.copy()
-props_ordered["Post_frac"] = props_ordered.get("AR_Post",0) + props_ordered.get("IR_Post",0)
-props_ordered["Pre_frac"]  = props_ordered.get("AR_Pre",0)  + props_ordered.get("IR_Pre",0)
-print(props_ordered[["Post_frac","Pre_frac"]])
+# props_ordered = props_ordered.copy()
+# props_ordered["Post_frac"] = props_ordered.get("AR_Post",0) + props_ordered.get("IR_Post",0)
+# props_ordered["Pre_frac"]  = props_ordered.get("AR_Pre",0)  + props_ordered.get("IR_Pre",0)
+# print(props_ordered[["Post_frac","Pre_frac"]])
 
-interval_df = sampleinfo.copy()
-interval_df['Sample'] = interval_df.index
-interval_df['Interval'] = interval_df['interval']
+# interval_df = sampleinfo.copy()
+# interval_df['Sample'] = interval_df.index
+# interval_df['Interval'] = interval_df['interval']
 
-interval_df = interval_df[['Sample','Interval']]
+# interval_df = interval_df[['Sample','Interval']]
 
-def compute_pc1_shift(pca_df):
-    shifts = []
+# def compute_pc1_shift(pca_df):
+#     shifts = []
     
-    for sample in pca_df.index.str.replace("_pre","").str.replace("_post","").unique():
-        pre_name = sample + "_pre"
-        post_name = sample + "_post"
+#     for sample in pca_df.index.str.replace("_pre","").str.replace("_post","").unique():
+#         pre_name = sample + "_pre"
+#         post_name = sample + "_post"
         
-        if pre_name in pca_df.index and post_name in pca_df.index:
-            shift = pca_df.loc[post_name,"PC1"] - pca_df.loc[pre_name,"PC1"]
-            shifts.append((sample, shift))
+#         if pre_name in pca_df.index and post_name in pca_df.index:
+#             shift = pca_df.loc[post_name,"PC1"] - pca_df.loc[pre_name,"PC1"]
+#             shifts.append((sample, shift))
     
-    shift_df = pd.DataFrame(shifts, columns=["Sample","PC1_shift"])
-    return shift_df
+#     shift_df = pd.DataFrame(shifts, columns=["Sample","PC1_shift"])
+#     return shift_df
 
-shift_df = compute_pc1_shift(pca_c1)
-shift_df = shift_df.merge(interval_df, on="Sample")
+# shift_df = compute_pc1_shift(pca_c1)
+# shift_df = shift_df.merge(interval_df, on="Sample")
 
-shift_df['Group'] = shift_df['Sample'].apply(lambda x: "AR" if x in ar_samples else ("IR" if x in ir_samples else "Unknown"))
+# shift_df['Group'] = shift_df['Sample'].apply(lambda x: "AR" if x in ar_samples else ("IR" if x in ir_samples else "Unknown"))
 
-import statsmodels.formula.api as smf
+# import statsmodels.formula.api as smf
 
-# shift_df must contain:
-# Sample, Shift, Interval, Group
+# # shift_df must contain:
+# # Sample, Shift, Interval, Group
 
-model = smf.ols("PC1_shift ~ Interval * Group", data=shift_df).fit()
-print(model.summary())
+# model = smf.ols("PC1_shift ~ Interval * Group", data=shift_df).fit()
+# print(model.summary())
 
-sns.lmplot(
-    data=shift_df,
-    x="Interval",
-    y="PC1_shift",
-    hue="Group",
-    height=5,
-    aspect=1.2
-)
+# sns.lmplot(
+#     data=shift_df,
+#     x="Interval",
+#     y="PC1_shift",
+#     hue="Group",
+#     height=5,
+#     aspect=1.2
+# )
 
-from scipy.stats import spearmanr
+# from scipy.stats import spearmanr
 
-plt.figure(figsize=(5,4))
-sns.regplot(data=shift_df, x="Interval", y="PC1_shift")
-plt.title("Interval vs PC1 shift")
-plt.show()
+# plt.figure(figsize=(5,4))
+# sns.regplot(data=shift_df, x="Interval", y="PC1_shift")
+# plt.title("Interval vs PC1 shift")
+# plt.show()
 
-print(spearmanr(shift_df["Interval"], shift_df["PC1_shift"]))
+# print(spearmanr(shift_df["Interval"], shift_df["PC1_shift"]))
 
 
-def compute_umap_projection_shift(df_umap):
-    df = df_umap.copy()
+# def compute_umap_projection_shift(df_umap):
+#     df = df_umap.copy()
 
-    # global pre/post 중심 계산
-    pre_center  = df[df["Time"]=="Pre"][["UMAP1","UMAP2"]].mean().values
-    post_center = df[df["Time"]=="Post"][["UMAP1","UMAP2"]].mean().values
+#     # global pre/post 중심 계산
+#     pre_center  = df[df["Time"]=="Pre"][["UMAP1","UMAP2"]].mean().values
+#     post_center = df[df["Time"]=="Post"][["UMAP1","UMAP2"]].mean().values
 
-    direction = post_center - pre_center
-    direction = direction / np.linalg.norm(direction)
+#     direction = post_center - pre_center
+#     direction = direction / np.linalg.norm(direction)
 
-    df["Sample"] = df.index.str.replace("_pre","").str.replace("_post","")
+#     df["Sample"] = df.index.str.replace("_pre","").str.replace("_post","")
 
-    shifts = []
+#     shifts = []
 
-    for sample in df["Sample"].unique():
-        pre_name  = sample + "_pre"
-        post_name = sample + "_post"
+#     for sample in df["Sample"].unique():
+#         pre_name  = sample + "_pre"
+#         post_name = sample + "_post"
 
-        if pre_name in df.index and post_name in df.index:
-            pre_vec  = df.loc[pre_name,  ["UMAP1","UMAP2"]].values
-            post_vec = df.loc[post_name, ["UMAP1","UMAP2"]].values
+#         if pre_name in df.index and post_name in df.index:
+#             pre_vec  = df.loc[pre_name,  ["UMAP1","UMAP2"]].values
+#             post_vec = df.loc[post_name, ["UMAP1","UMAP2"]].values
 
-            shift_vec = post_vec - pre_vec
+#             shift_vec = post_vec - pre_vec
 
-            # projection onto global direction
-            proj_shift = np.dot(shift_vec, direction)
+#             # projection onto global direction
+#             proj_shift = np.dot(shift_vec, direction)
 
-            shifts.append((sample, proj_shift))
+#             shifts.append((sample, proj_shift))
 
-    shift_df = pd.DataFrame(shifts, columns=["Sample","UMAP_proj_shift"])
-    return shift_df
+#     shift_df = pd.DataFrame(shifts, columns=["Sample","UMAP_proj_shift"])
+#     return shift_df
 
-from scipy.stats import spearmanr
-import seaborn as sns
-import matplotlib.pyplot as plt
+# from scipy.stats import spearmanr
+# import seaborn as sns
+# import matplotlib.pyplot as plt
 
-shift_df = compute_umap_projection_shift(df_class1)
+# shift_df = compute_umap_projection_shift(df_class1)
 
-shift_df = shift_df.merge(interval_df, on="Sample")
+# shift_df = shift_df.merge(interval_df, on="Sample")
 
-plt.figure(figsize=(5,4))
-sns.regplot(data=shift_df, x="Interval", y="UMAP_proj_shift")
-plt.title("Interval vs UMAP projection shift")
-plt.show()
+# plt.figure(figsize=(5,4))
+# sns.regplot(data=shift_df, x="Interval", y="UMAP_proj_shift")
+# plt.title("Interval vs UMAP projection shift")
+# plt.show()
 
-print(spearmanr(shift_df["Interval"], shift_df["UMAP_proj_shift"]))
+# print(spearmanr(shift_df["Interval"], shift_df["UMAP_proj_shift"]))
 
 
 

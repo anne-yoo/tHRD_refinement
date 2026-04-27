@@ -41,11 +41,13 @@ sqanti.dropna(axis=1, how='all', inplace=True)
 
 AR_dut = pd.read_csv('/home/jiye/jiye/copycomparison/GENCODEquant/SEV_prepost/merged_cov5_analysis/whole_AR_stable_DUT_Wilcoxon_delta_withna.txt', sep='\t', index_col=0)
 IR_dut = pd.read_csv('/home/jiye/jiye/copycomparison/GENCODEquant/SEV_prepost/merged_cov5_analysis/whole_IR_stable_DUT_Wilcoxon_delta_withna.txt', sep='\t', index_col=0)
+baseline_dut = pd.read_csv('/home/jiye/jiye/copycomparison/GENCODEquant/SEV_prepost/merged_cov5_analysis/whole_baseline_ARpre_vs_IRpre_stable_DUT_MannWhitney_delta_withna.txt', sep='\t', index_col=0)
 # AR_dut = pd.read_csv('/home/jiye/jiye/copycomparison/GENCODEquant/SEV_prepost/merged_cov5_analysis/maintenance/AR_stable_DUT_Wilcoxon_delta_withna.txt', sep='\t', index_col=0) #^Only maintenance
 # IR_dut = pd.read_csv('/home/jiye/jiye/copycomparison/GENCODEquant/SEV_prepost/merged_cov5_analysis/maintenance/IR_stable_DUT_Wilcoxon_delta_withna.txt', sep='\t', index_col=0) #^Only maintenance
 
 ARdutlist = AR_dut.loc[(AR_dut['p_value']<0.05) & (np.abs(AR_dut['delta_TU'])>0.05)].index.to_list()
 IRdutlist = IR_dut.loc[(IR_dut['p_value']<0.05) & (np.abs(IR_dut['delta_TU'])>0.05)].index.to_list()
+baseline_dutlist = baseline_dut.loc[(baseline_dut['p_value']<0.05) & (np.abs(baseline_dut['delta_TU'])>0.05)].index.to_list()
 
 sampleinfo = pd.read_csv('/home/jiye/jiye/copycomparison/gDUTresearch/GEN_FINALDATA/SEV_prepost_80_clinicalinfo.txt', sep='\t', index_col=0)
 sampleinfo_full = sampleinfo.copy()
@@ -157,11 +159,11 @@ wedges, texts, autotexts = plt.pie(
 )
 plt.axis('equal')  # 원형 유지
 plt.legend(wedges, labels, loc='center left', bbox_to_anchor=(1, 0.5))
-#plt.savefig('/home/jiye/jiye/copycomparison/GENCODEquant/SEV_prepost/merged_cov5_analysis/0210figures/sampleinfo_IR_BRCAmut_piechart.pdf', dpi=300, bbox_inches='tight')
+plt.savefig('/home/jiye/jiye/copycomparison/GENCODEquant/figures/sampleinfo_IR_BRCAmut_piechart.pdf', dpi=300, bbox_inches='tight')
 plt.show()
 
 ## piechart for drug
-counts = sampleinfo[sampleinfo['response']==1]['drug'].value_counts()
+counts = sampleinfo[sampleinfo['response']==0]['drug'].value_counts()
 colors = sns.color_palette('husl', n_colors=len(counts))
 labels = ['Olaparib','Niraparib','Rucaparib']  # 0, 1 순서
 plt.figure(figsize=(3, 3))
@@ -176,7 +178,7 @@ wedges, texts, autotexts = plt.pie(
 )
 plt.axis('equal')
 plt.legend(wedges, labels, loc='center left', bbox_to_anchor=(1, 0.5))
-#plt.savefig('/home/jiye/jiye/copycomparison/GENCODEquant/SEV_prepost/merged_cov5_analysis/0210figures/sampleinfo_IR_drug_piechart.pdf', dpi=300, bbox_inches='tight')
+plt.savefig('/home/jiye/jiye/copycomparison/GENCODEquant/figures/sampleinfo_IR_drug_piechart.pdf', dpi=300, bbox_inches='tight')
 plt.show()
 
 ## line info
@@ -202,7 +204,32 @@ plt.xlabel('Line')
 plt.ylabel('Count')
 plt.tight_layout()
 sns.despine()
-#plt.savefig('/home/jiye/jiye/copycomparison/GENCODEquant/SEV_prepost/merged_cov5_analysis/0210figures/sampleinfo_line_countplot.pdf', dpi=300, bbox_inches='tight')
+plt.savefig('/home/jiye/jiye/copycomparison/GENCODEquant/figures/sampleinfo_line_countplot.pdf', dpi=300, bbox_inches='tight')
+plt.show()
+
+line_prop = (
+    sampleinfo.groupby(['Group', 'line_num'], observed=False)
+    .size()
+    .reset_index(name='count')
+)
+line_prop['proportion'] = line_prop.groupby('Group')['count'].transform(lambda x: x / x.sum())
+
+plt.figure(figsize=(5.5, 3))
+ax = sns.barplot(
+    data=line_prop,
+    x='line_num',
+    y='proportion',
+    hue='Group',
+    palette={"AR": "#FEB24C", "IR": "#5AAE61"}
+)
+ax.yaxis.set_major_formatter(matplotlib.ticker.PercentFormatter(1))
+ax.xaxis.set_major_locator(MaxNLocator(integer=True))
+
+plt.xlabel('Line')
+plt.ylabel('Proportion')
+plt.tight_layout()
+sns.despine()
+plt.savefig('/home/jiye/jiye/copycomparison/GENCODEquant/figures/sampleinfo_line_proportion_barplot.pdf', dpi=300, bbox_inches='tight')
 plt.show()
 
 ##interval
@@ -218,7 +245,7 @@ ax = sns.boxplot(
     whis=1.5,
     linewidth=1.5,
     fliersize=4,
-    width=0.6,
+    width=0.7,
     palette={"AR": "#FEB24C", "IR": "#5AAE61"},
     whiskerprops=dict(linewidth=1.5),
     capprops=dict(linewidth=1.5)
@@ -228,7 +255,7 @@ plt.xlabel('Days')
 plt.ylabel('Group')
 plt.tight_layout()
 sns.despine()
-#plt.savefig('/home/jiye/jiye/copycomparison/GENCODEquant/SEV_prepost/merged_cov5_analysis/0210figures/sampleinfo_interval_boxplot.pdf', dpi=300, bbox_inches='tight')
+plt.savefig('/home/jiye/jiye/copycomparison/GENCODEquant/figures/sampleinfo_interval_boxplot.pdf', dpi=300, bbox_inches='tight')
 plt.show()
 
 ## class 1 /3 venn diagram
@@ -256,13 +283,13 @@ for text in v.subset_labels:
         text.set_fontsize(16)
         text.set_weight('bold')
 plt.tight_layout()
-#plt.savefig('/home/jiye/jiye/copycomparison/GENCODEquant/SEV_prepost/merged_cov5_analysis/0210figures/Class1DUT_venn.pdf', dpi=300, bbox_inches='tight')
+plt.savefig('/home/jiye/jiye/copycomparison/GENCODEquant/figures/Class1DUT_venn.pdf', dpi=300, bbox_inches='tight')
 plt.show()
 
 #%%
 ## DUT pre / post upregulated barplot
-ARuplist = IR_dut.loc[(IR_dut['p_value']<0.05) & (IR_dut['delta_TU']>0.05)].index.to_list()
-ARdownlist = IR_dut.loc[(IR_dut['p_value']<0.05) & (IR_dut['delta_TU']<-0.05)].index.to_list()
+ARuplist = AR_dut.loc[(AR_dut['p_value']<0.05) & (AR_dut['delta_TU']>0.05)].index.to_list()
+ARdownlist = AR_dut.loc[(AR_dut['p_value']<0.05) & (AR_dut['delta_TU']<-0.05)].index.to_list()
 
 class_map = {}
 
@@ -313,16 +340,296 @@ plt.legend(title='')
 plt.gca().yaxis.set_major_locator(MaxNLocator(integer=True))
 plt.tight_layout()
 sns.despine()
-plt.savefig('/home/jiye/jiye/copycomparison/GENCODEquant/SEV_prepost/merged_cov5_analysis/0210figures/IR_Class1DUT_barplot.pdf', dpi=300, bbox_inches='tight')
+plt.savefig('/home/jiye/jiye/copycomparison/GENCODEquant/figures/AR_Class1DUT_barplot.pdf', dpi=300, bbox_inches='tight')
 plt.show()
 
 
 # %%
+###^^ AR DUT vs. IR DUT boxplot ###
+
+def extract_pair_id_local(sample_name):
+    sample_name = str(sample_name)
+    return re.sub(r"-(atD|bfD)$", "", sample_name, flags=re.IGNORECASE)
+
+
+def restrict_samples_by_group_local(df, sample_list):
+    sample_set = set(sample_list)
+    keep_cols = [c for c in df.columns if extract_pair_id_local(c) in sample_set]
+    return df[keep_cols].copy()
+
+
+def split_time_cols_local(cols, pre_label="bfD", post_label="atD"):
+    cols = [str(c) for c in cols]
+    pre_cols = [c for c in cols if c.lower().endswith(f"-{pre_label.lower()}")]
+    post_cols = [c for c in cols if c.lower().endswith(f"-{post_label.lower()}")]
+    return pre_cols, post_cols
+
+
+def compute_group_paired_mean_tu(
+    filtered_trans,
+    transcript_list,
+    sample_list,
+    fillna=False,
+    pre_label="bfD",
+    post_label="atD"
+):
+    tx = [t for t in pd.Index(transcript_list).unique() if t in filtered_trans.index]
+    if len(tx) == 0:
+        return pd.DataFrame(columns=["PairID", "Pre", "Post"])
+
+    sub = filtered_trans.loc[tx].copy()
+    sub = restrict_samples_by_group_local(sub, sample_list)
+    if sub.shape[1] == 0:
+        return pd.DataFrame(columns=["PairID", "Pre", "Post"])
+
+    if fillna:
+        sub = sub.fillna(0)
+
+    pre_cols, post_cols = split_time_cols_local(
+        sub.columns,
+        pre_label=pre_label,
+        post_label=post_label
+    )
+
+    if len(pre_cols) == 0 or len(post_cols) == 0:
+        return pd.DataFrame(columns=["PairID", "Pre", "Post"])
+
+    mean_pre = sub[pre_cols].mean(axis=0)
+    mean_post = sub[post_cols].mean(axis=0)
+
+    pre_df = pd.DataFrame({
+        "PairID": [extract_pair_id_local(x) for x in mean_pre.index],
+        "Pre": mean_pre.values
+    })
+    post_df = pd.DataFrame({
+        "PairID": [extract_pair_id_local(x) for x in mean_post.index],
+        "Post": mean_post.values
+    })
+
+    paired_df = pd.merge(pre_df, post_df, on="PairID", how="inner")
+    paired_df = paired_df.dropna(subset=["Pre", "Post"])
+    return paired_df
+
+
+def build_class_mean_tu_box_df(class_tx, fillna=False):
+    ar_tx = list(set(ARdutlist).intersection(set(class_tx)))
+    ir_tx = list(set(IRdutlist).intersection(set(class_tx)))
+
+    ar_paired = compute_group_paired_mean_tu(
+        filtered_trans=filtered_trans,
+        transcript_list=ar_tx,
+        sample_list=ar_samples,
+        fillna=fillna
+    )
+    ir_paired = compute_group_paired_mean_tu(
+        filtered_trans=filtered_trans,
+        transcript_list=ir_tx,
+        sample_list=ir_samples,
+        fillna=fillna
+    )
+
+    frames = []
+    if not ar_paired.empty:
+        frames.append(pd.DataFrame({
+            "Condition": ["AR pre"] * len(ar_paired) + ["AR post"] * len(ar_paired),
+            "MeanTU": pd.concat([ar_paired["Pre"], ar_paired["Post"]], ignore_index=True)
+        }))
+    if not ir_paired.empty:
+        frames.append(pd.DataFrame({
+            "Condition": ["IR pre"] * len(ir_paired) + ["IR post"] * len(ir_paired),
+            "MeanTU": pd.concat([ir_paired["Pre"], ir_paired["Post"]], ignore_index=True)
+        }))
+
+    if len(frames) == 0:
+        return pd.DataFrame(columns=["Condition", "MeanTU"])
+
+    return pd.concat(frames, ignore_index=True)
+
+order = ["AR pre", "AR post", "IR pre", "IR post"]
+tu_palette = {
+    "AR pre": "#FFEDA0",
+    "AR post": "#FEB24C",
+    "IR pre": "#D9F0D3",
+    "IR post": "#5AAE61"
+}
+
+class_map = {
+    "Class1": class1,
+    "Class2": class2,
+    "Class3": class3
+}
+
+pairs = [
+    ("AR pre", "AR post"),
+    ("IR pre", "IR post"),
+    ("AR pre", "IR pre"),
+]
+
+fig, axes = plt.subplots(1, 3, figsize=(16, 5), sharey=False)
+
+for idx, (class_label, class_tx) in enumerate(class_map.items()):
+    ax = axes[idx]
+    tu_box_df = build_class_mean_tu_box_df(class_tx, fillna=False)
+
+    if tu_box_df.empty:
+        ax.text(0.5, 0.5, "No data", ha="center", va="center", fontsize=12)
+        ax.set_title(class_label)
+        ax.set_xlabel("")
+        if idx == 0:
+            ax.set_ylabel("Mean TU")
+        else:
+            ax.set_ylabel("")
+        sns.despine(ax=ax)
+        continue
+
+    sns.boxplot(
+        data=tu_box_df,
+        x="Condition",
+        y="MeanTU",
+        order=order,
+        palette=tu_palette,
+        showfliers=False,
+        width=0.75,
+        linewidth=1.3,
+        ax=ax
+    )
+
+    present_groups = set(tu_box_df["Condition"])
+    valid_pairs = [pair for pair in pairs if pair[0] in present_groups and pair[1] in present_groups]
+
+    if valid_pairs:
+        annotator = Annotator(
+            ax,
+            valid_pairs,
+            data=tu_box_df,
+            x="Condition",
+            y="MeanTU",
+            order=order
+        )
+        annotator.configure(
+            test="Mann-Whitney",
+            text_format="simple",
+            loc="outside",
+            verbose=0,
+        )
+        annotator.apply_and_annotate()
+
+    ax.set_title(class_label)
+    ax.set_xlabel("")
+    if idx == 0:
+        ax.set_ylabel("Mean TU")
+    else:
+        ax.set_ylabel("")
+    sns.despine(ax=ax)
+
+plt.tight_layout()
+plt.show()
+
 
 # %%
+###^^ baseline DUT (AR pre vs IR pre) boxplot ###
+
+def build_class_mean_tu_box_df_common_dut(class_tx, common_dutlist, fillna=False):
+    common_tx = list(set(common_dutlist).intersection(set(class_tx)))
+    common_tx = [t for t in pd.Index(common_tx).unique() if t in filtered_trans.index]
+
+    ar_paired = compute_group_paired_mean_tu(
+        filtered_trans=filtered_trans,
+        transcript_list=common_tx,
+        sample_list=ar_samples,
+        fillna=fillna
+    )
+    ir_paired = compute_group_paired_mean_tu(
+        filtered_trans=filtered_trans,
+        transcript_list=common_tx,
+        sample_list=ir_samples,
+        fillna=fillna
+    )
+
+    frames = []
+    if not ar_paired.empty:
+        frames.append(pd.DataFrame({
+            "Condition": ["AR pre"] * len(ar_paired) + ["AR post"] * len(ar_paired),
+            "MeanTU": pd.concat([ar_paired["Pre"], ar_paired["Post"]], ignore_index=True)
+        }))
+    if not ir_paired.empty:
+        frames.append(pd.DataFrame({
+            "Condition": ["IR pre"] * len(ir_paired) + ["IR post"] * len(ir_paired),
+            "MeanTU": pd.concat([ir_paired["Pre"], ir_paired["Post"]], ignore_index=True)
+        }))
+
+    if len(frames) == 0:
+        return pd.DataFrame(columns=["Condition", "MeanTU"]), len(common_tx)
+
+    return pd.concat(frames, ignore_index=True), len(common_tx)
+
+
+fig, axes = plt.subplots(1, 3, figsize=(16, 5), sharey=False)
+
+for idx, (class_label, class_tx) in enumerate(class_map.items()):
+    ax = axes[idx]
+    tu_box_df, transcript_n = build_class_mean_tu_box_df_common_dut(
+        class_tx=class_tx,
+        common_dutlist=baseline_dutlist,
+        fillna=False
+    )
+    print(f"Baseline DUT {class_label}: transcript n = {transcript_n}")
+
+    if tu_box_df.empty:
+        ax.text(0.5, 0.5, "No data", ha="center", va="center", fontsize=12)
+        ax.set_title("")
+        ax.set_xlabel(class_label)
+        if idx == 0:
+            ax.set_ylabel("Mean TU")
+        else:
+            ax.set_ylabel("")
+        sns.despine(ax=ax)
+        continue
+
+    sns.boxplot(
+        data=tu_box_df,
+        x="Condition",
+        y="MeanTU",
+        order=order,
+        palette=tu_palette,
+        showfliers=False,
+        width=0.75,
+        linewidth=1.3,
+        ax=ax
+    )
+
+    present_groups = set(tu_box_df["Condition"])
+    valid_pairs = [pair for pair in pairs if pair[0] in present_groups and pair[1] in present_groups]
+
+    if valid_pairs:
+        annotator = Annotator(
+            ax,
+            valid_pairs,
+            data=tu_box_df,
+            x="Condition",
+            y="MeanTU",
+            order=order
+        )
+        annotator.configure(
+            test="Mann-Whitney",
+            text_format="simple",
+            loc="outside",
+            verbose=0,
+        )
+        annotator.apply_and_annotate()
+
+    ax.set_title("")
+    ax.set_xlabel(class_label)
+    if idx == 0:
+        ax.set_ylabel("Mean TU")
+    else:
+        ax.set_ylabel("")
+    sns.despine(ax=ax)
+
+plt.tight_layout()
+plt.show()
 
 #%%
-####^^ (1-1) group 1 증가 GO enrichment######
 import gseapy as gp
 
 ARuplist = AR_dut.loc[(AR_dut['p_value']<0.05) & (AR_dut['delta_TU']>0.05)].index.to_list()
@@ -471,7 +778,7 @@ sm.set_array([])
 # Displaying color bar
 cbar = plt.colorbar(sm)
 #cbar.set_label('Overlap Percentage')
-#plt.savefig('/home/jiye/jiye/copycomparison/GENCODEquant/SEV_prepost/merged_cov5_analysis/0210figures/40_downclass3_GOtop20.pdf', dpi=300, bbox_inches='tight')
+plt.savefig('/home/jiye/jiye/copycomparison/GENCODEquant/figures/40_downclass3_GOtop20.pdf', dpi=300, bbox_inches='tight')
 plt.show()
 
 #%%
@@ -484,16 +791,25 @@ import numpy as np
 import pandas as pd
 from matplotlib.patches import Patch
 
+##* baseline: AR - IR
+
 ARuplist = AR_dut.loc[(AR_dut['p_value']<0.05) & (AR_dut['delta_TU']>0.05)].index.to_list()
 ARdownlist = AR_dut.loc[(AR_dut['p_value']<0.05) & (AR_dut['delta_TU']<-0.05)].index.to_list()
 IRuplist = IR_dut.loc[(IR_dut['p_value']<0.05) & (IR_dut['delta_TU']>0.05)].index.to_list()
 IRdownlist = IR_dut.loc[(IR_dut['p_value']<0.05) & (IR_dut['delta_TU']<-0.05)].index.to_list()
+baselineuplist = baseline_dut.loc[(baseline_dut['p_value']<0.05) & (baseline_dut['delta_TU']>0.05)].index.to_list()
+baselinedownlist = baseline_dut.loc[(baseline_dut['p_value']<0.05) & (baseline_dut['delta_TU']<-0.05)].index.to_list()
 
 tlist = set(ARuplist).intersection(set(class1))
 tlist2 = set(ARdownlist).intersection(set(class3))
+tlist3 = set(baselineuplist).intersection(set(class1))
+tlist4 = set(baselinedownlist).intersection(set(class3))
+
 
 glist = list(set([x.split('-', 1)[-1] for x in list(tlist)]))
 glist2 = list(set([x.split('-', 1)[-1] for x in list(tlist2)]))
+glist3 = list(set([x.split('-', 1)[-1] for x in list(tlist3)]))
+glist4 = list(set([x.split('-', 1)[-1] for x in list(tlist4)]))
 
 def get_top_enrichment(gene_list, label):
     # Reactome_2022로 분석 수행
@@ -514,8 +830,8 @@ def get_top_enrichment(gene_list, label):
     return top5
 
 # 1. 데이터 가져오기
-top5_up = get_top_enrichment(glist, 'AR Upregulated (Class 1)')
-top5_down = get_top_enrichment(glist2, 'AR Downregulated (Class 3)')
+top5_up = get_top_enrichment(glist3, 'AR Upregulated (Class 1)')
+top5_down = get_top_enrichment(glist4, 'AR Downregulated (Class 3)')
 
 # 1. 시각화를 위한 통합 데이터프레임 생성
 df_plot = pd.concat([top5_up, top5_down]).reset_index(drop=True)
@@ -535,13 +851,13 @@ sns.barplot(
 
 # 4. 커스텀 범례(Legend) 생성
 legend_elements = [
-    Patch(facecolor='#FF9616', label='Upregulated Class 1 DUT'),
-    Patch(facecolor='#1E9652', label='Downregulated Class 3 DUT')
+    Patch(facecolor='#FF9616', label='AR Upregulated Class 1 DUT'),
+    Patch(facecolor='#1E9652', label='AR Downregulated Class 3 DUT')
 ]
 
 # 왼쪽 상단(upper left)에 범례 추가
 ax.legend(handles=legend_elements, 
-          loc='upper right', 
+          loc='lower left', 
           bbox_to_anchor=(-0.9, 1), 
           frameon=False, 
           fontsize=12, 
@@ -558,7 +874,7 @@ ax.set_xlim(0, max(df_plot['-log10(FDR)']) * 1.1)
 
 sns.despine()
 plt.tight_layout()
-#plt.savefig('/home/jiye/jiye/copycomparison/GENCODEquant/SEV_prepost/merged_cov5_analysis/0210figures/40_top5_GObarplot.pdf', dpi=300, bbox_inches='tight')
+plt.savefig('/home/jiye/jiye/copycomparison/GENCODEquant/figures/baseline_40_top5_GObarplot.pdf', dpi=300, bbox_inches='tight')
 plt.show()
 
 #%%
@@ -1214,7 +1530,7 @@ def plot_meanTU_box_grid_by_class(
             h = yr * 0.015
             add_stat_annotation(ax, 0, 1, line_y, h, star, fontsize=11)
 
-            ax.set_title(f"{label} DUT (Class {row_idx+1})", fontsize=1, fontweight="bold")
+            ax.set_title(f"{label} DUT (Class {row_idx+1})", fontsize=13, fontweight="bold")
             ax.set_xlabel("Time", fontsize=13)
             ax.set_ylabel("Mean TU", fontsize=13)
             ax.set_ylim(y_min, y_max+0.02)
@@ -1241,7 +1557,7 @@ plot_meanTU_box_grid_by_class(
     fillna=False,
     pre_label="bfD",
     post_label="atD",
-    save_path="/home/jiye/jiye/copycomparison/GENCODEquant/SEV_prepost/merged_cov5_analysis/0210figures/AR_IR_Class_boxplot.pdf"
+    #save_path="/home/jiye/jiye/copycomparison/GENCODEquant/SEV_prepost/merged_cov5_analysis/0210figures/AR_IR_Class_boxplot.pdf"
 )
 #%%
 #####^^ delta TU로 rank sum -> GO check ######################
@@ -1757,8 +2073,7 @@ def enrichr_and_plot_bar(
     # ax.axvline(0, color="0.4", linewidth=0.8)
 
     savepath = (
-        '/home/jiye/jiye/copycomparison/GENCODEquant/SEV_prepost/'
-        'merged_cov5_analysis/0210figures/' + title + 'GObarplot.pdf'
+        '/home/jiye/jiye/copycomparison/GENCODEquant/figures/' + title + 'GObarplot.pdf'
     )
 
     # tight_layout, bbox_inches='tight'는 쓰지 않음
@@ -2286,7 +2601,6 @@ def generate_functional_plots(TU, sampleinfo, class_lists, save_path=None):
 
     # Figure 설정 (3행 4열: B(Density) 2열 + C(Boxplot) 2열)
     fig, axes = plt.subplots(3, 4, figsize=(18, 14))
-    plt.rcParams["font.family"] = "Arial"
 
     for row, ids in enumerate(class_lists):
         class_label = f"Class {row + 1}"
@@ -3071,7 +3385,7 @@ import seaborn as sns
 
 def plot_event_grid_volcano(ar_df, ir_df, 
                             x_col='d_psi', y_col='pval', event_col='event',
-                            save_path="AR_vs_IR_Splicing_Volcano_Grid.png"):
+                            save_path="/home/jiye/jiye/copycomparison/GENCODEquant/figures/AR_vs_IR_Splicing_Volcano_Grid.png"):
     
     # 1. 공통으로 존재하는 이벤트 타입 추출 및 정렬
     # (데이터가 많은 순서대로 정렬하면 보기 좋습니다)
@@ -3651,9 +3965,9 @@ set(ar_ri['gene_name']).intersection(set(ddrgenes))
 
 
 # %%
-##^^ (5) pre_cohort splice gene check #########
+##^^ (5) validation cohort splice gene check #########
 target_genes = ["ALYREF","DDX1","MYEF2","DDX23","PPM1G","RBM47","ZNF207","LSM6","SNRPB","PCBP1"]
-target_genes = [
+target_genes = [ ##** 3개 교집합 ####
     "PRPF39",
     "HNRNPUL1",
     "NHP2L1",
@@ -3675,23 +3989,18 @@ target_genes = [
 ]
 newcohort = pd.read_csv('/home/jiye/jiye/copycomparison/GENCODEquant/SEV_pre/111_pre/forval_111_gene_TPM.txt', sep='\t', index_col=0)
 sfgeneexp = newcohort.loc[newcohort.index.isin(target_genes), :]
+
+#####***##########################################
 clin = pd.read_csv('/home/jiye/jiye/copycomparison/gDUTresearch/FINALDATA/withYNK/112_PARPi_clinicalinfo.txt', sep='\t', index_col=0)
 clin = clin.loc[clin.index.isin(sfgeneexp.columns),:]
-#clin = clin[clin['setting']=='maintenance']
+#clin = clin[(clin['line']=='1L') | (clin['BRCAmt']==1)]
 clin['group'] = 'i'
 clin.loc[(clin['response']==1)&(clin['recur']==1),'group'] = 'AR'
 clin.loc[(clin['response']==0),'group'] = 'IR'
 clin.loc[(clin['response']==1)&(clin['recur']==0),'group'] = 'CR'
+#####***##########################################
 
-#clin = clin[clin['group']!='AR']
-
-#clin = clin[clin['response']==1]
-# clin = clin[clin['line']!='1L']
 sfgeneexp = sfgeneexp.loc[:,sfgeneexp.columns.isin(clin.index)]
-
-# newcohort = pd.read_csv('/home/jiye/jiye/copycomparison/GENCODEquant/POLO/83_gene_exp.txt', sep='\t', index_col=0)
-# clin = pd.read_csv('/home/jiye/jiye/copycomparison/gDUTresearch/FINALDATA/withYNK/83_POLO_clinicalinfo.txt', sep='\t', index_col=0)
-# sfgeneexp = newcohort.loc[newcohort.index.isin(target_genes), :]
 
 
 import pandas as pd
@@ -3827,48 +4136,16 @@ plt.show()
 # %%
 ####^^^ 앞에서 사용한 group 1 AR DUT를 validation cohort에서 확인하기 #################
 
-
-
 val_tpm = pd.read_csv('/home/jiye/jiye/copycomparison/GENCODEquant/SEV_pre/111_pre/forval_111_transcript_TPM.txt', sep='\t', index_col=0)
-val_tpm = val_tpm.loc[:, val_tpm.columns.isin(clin.index)]
-
+val_tpm = val_tpm.apply(pd.to_numeric, errors='coerce')
 val_tpm = val_tpm.loc[(val_tpm > 0).sum(axis=1) >= 15] #20% 이상에서는 나오긴 해야됨 ...
+val_tpm = val_tpm.loc[:, val_tpm.columns.isin(clin.index)]
 val_tpm["gene"] = val_tpm.index.str.split("-", n=1).str[-1]
 gene_sum = val_tpm.groupby("gene").transform("sum")
 val_tu = val_tpm.iloc[:, :-1].div(gene_sum)
 
-# #%%
-# plt.figure(figsize=(6,6))
-# sns.set(style='ticks')
-# # 1. Boxplot을 그릴 때 ax 객체를 저장합니다.
-# ax = sns.boxplot(x='group', y='mean_group1_DUT_exp', data=merged_forfig, 
-#                  order=['CR', 'AR' ,'IR'], palette=['#1681CD', '#E56007'], showfliers=False)
-# sns.stripplot(x='group', y='mean_group1_DUT_exp', data=merged_forfig,
-#               order=['CR', 'AR'], 
-#               color='#545454',       # 점 색상
-#               alpha=0.3,           # 투명도 (0~1)
-#               jitter=0.1,          # 점들이 겹치지 않게 좌우로 흩뿌림
-#               size=5,              # 점 크기
-#               ax=ax)               # 같은 축(ax) 사용
-# # 2. 비교할 그룹의 쌍(pair)을 정의합니다.
-# pairs = [("CR", "AR")]
-
-# # 3. Annotator 설정 및 적용
-# annotator = Annotator(ax, pairs, data=merged_forfig, x='group', y='mean_group1_DUT_exp', order=['CR', 'AR'])
-
-# # test='t-test_ind' (t-검정) 또는 'Mann-Whitney' (비모수 검정) 중 선택
-# annotator.configure(test='Mann-Whitney', text_format='full', loc='inside', verbose=2, pvalue_format_string='{:.2f}')
-# annotator.apply_and_annotate()
-
-# sns.despine()
-# plt.ylabel('mean_group1_DUT_exp')
-# plt.title('group1 mean exp: CR vs AR') # 제목 추가 추천
-# plt.savefig('/home/jiye/jiye/copycomparison/GENCODEquant/SEV_pre/111_pre/figures/group1_DUT_exp_CRvsAR.pdf', dpi=300, bbox_inches='tight')
-# plt.show()
-
-#%%
-ARdut_forval = AR_dut.loc[(AR_dut['p_value']<0.05) & np.abs(AR_dut['delta_TU']>0.05)].index.to_list()
-ARgroup1dut = set(ARdut_forval).intersection(set(class1))
+ARdut_forval = AR_dut.loc[(AR_dut['p_value']<0.05) &(AR_dut['delta_TU']>0.05)].index.to_list() ##^^ no abs 
+ARgroup1dut = set(ARdut_forval).intersection(set(class1)) ##^^ here 
 
 val_exp = val_tpm.loc[val_tpm.index.isin(ARgroup1dut), val_tpm.columns.isin(clin.index)]
 val_dut = val_tu.loc[val_tu.index.isin(ARgroup1dut), val_tu.columns.isin(clin.index)]
@@ -3899,10 +4176,168 @@ annotator.configure(test='Mann-Whitney', text_format='full', loc='inside', verbo
 annotator.apply_and_annotate()
 
 sns.despine()
-plt.ylabel('mean_group1_DUT_TU')
+plt.ylabel('mean TU')
 plt.title('Class1 AR DUT') # 제목 추가 추천
 #plt.savefig('/home/jiye/jiye/copycomparison/GENCODEquant/SEV_pre/111_pre/figures/group1_DUT_TU_CRvsARvsIR.pdf', dpi=300, bbox_inches='tight')
 plt.show()
+
+#%%
+###^^^^^^ validation cohort에서 별 DUT로 확인 #############33
+Class1_sig_genelist = ['CCND3','NPM1']
+# [
+#     "MAPRE1", "CHMP7", "KPNB1", "PSME4", "PDS5A",
+#     "TNPO1", "VRK2", "AKT2", "NIPBL", "CNOT10"
+# ]
+
+Class3_sig_genelist = [
+    "POLR1B", "HM13", "NUP85", "CREB3L2", "BAG1", "ACTR10",
+    "RBBP8", 
+]
+
+#####***##########################################
+clin = pd.read_csv('/home/jiye/jiye/copycomparison/gDUTresearch/FINALDATA/withYNK/112_PARPi_clinicalinfo.txt', sep='\t', index_col=0)
+clin = clin.loc[clin.index.isin(sfgeneexp.columns),:]
+clin = clin[(clin['BRCAmt']==0)] #(clin['line']!='1L') & 
+clin['group'] = 'i'
+clin.loc[(clin['response']==1)&(clin['recur']==1),'group'] = 'AR'
+clin.loc[(clin['response']==0),'group'] = 'IR'
+clin.loc[(clin['response']==1)&(clin['recur']==0),'group'] = 'CR'
+#####***##########################################
+
+val_tpm = pd.read_csv('/home/jiye/jiye/copycomparison/GENCODEquant/SEV_pre/111_pre/forval_111_transcript_TPM.txt', sep='\t', index_col=0)
+val_tpm = val_tpm.apply(pd.to_numeric, errors='coerce')
+val_tpm = val_tpm.loc[(val_tpm > 0).sum(axis=1) >= 15] #20% 이상에서는 나오긴 해야됨 ...
+val_tpm = val_tpm.loc[:, val_tpm.columns.isin(clin.index)]
+val_tpm["gene"] = val_tpm.index.str.split("-", n=1).str[-1]
+gene_sum = val_tpm.groupby("gene").transform("sum")
+val_tu = val_tpm.iloc[:, :-1].div(gene_sum)
+
+val_tx_class1 = set(ARuplist).intersection(set(class1)) ##^^ here 
+val_tx_class3 = set(ARdownlist).intersection(set(class3)) ##^^ here 
+
+val_dut_class1 = val_tu.loc[val_tu.index.isin(val_tx_class1), val_tu.columns.isin(clin.index)]
+val_dut_class3 = val_tu.loc[val_tu.index.isin(val_tx_class3), val_tu.columns.isin(clin.index)]
+
+def get_validation_marker_transcripts(val_dut_df, gene_list):
+    gene_order = {gene: idx for idx, gene in enumerate(gene_list)}
+    selected_tx = [
+        tx for tx in val_dut_df.index
+        if tx.split("-", 1)[-1] in gene_order
+    ]
+    selected_tx = sorted(
+        selected_tx,
+        key=lambda tx: (
+            gene_order.get(tx.split("-", 1)[-1], len(gene_order)),
+            tx.split("-", 1)[-1],
+            tx.split("-", 1)[0],
+        )
+    )
+    return selected_tx
+
+
+def plot_validation_marker_boxplots(val_dut_df, gene_list, clin_df, class_label, show_strip=False):
+    plot_order = ['CR', 'IR', 'AR']
+    palette = {"AR": "#FEB24C", "IR": "#5AAE61", "CR": "#58C1EE"}
+    pairs = [("CR", "AR"), ("CR", "IR"), ("AR", "IR")]
+    selected_tx = get_validation_marker_transcripts(val_dut_df, gene_list)
+
+    print(f"{class_label}: {len(selected_tx)} transcripts selected")
+    print(selected_tx)
+
+    if len(selected_tx) == 0:
+        print(f"No validation transcripts found for {class_label}.")
+        return
+
+    sns.set(style='ticks')
+    n_cols = min(4, len(selected_tx))
+    n_rows = (len(selected_tx) + n_cols - 1) // n_cols
+    fig, axes = plt.subplots(n_rows, n_cols, figsize=(6 * n_cols, 5 * n_rows), squeeze=False)
+    flat_axes = axes.flatten()
+
+    base_df = clin_df[['group']].copy()
+    base_df = base_df[base_df['group'].isin(plot_order)]
+
+    for ax, tx in zip(flat_axes, selected_tx):
+        plot_df = base_df.copy()
+        plot_df['TU'] = val_dut_df.loc[tx].reindex(plot_df.index)
+        plot_df = plot_df.dropna(subset=['TU'])
+
+        if plot_df.empty:
+            ax.set_visible(False)
+            continue
+
+        sns.boxplot(
+            x='group',
+            y='TU',
+            data=plot_df,
+            order=plot_order,
+            palette=palette,
+            showfliers=False,
+            ax=ax,
+        )
+        if show_strip:
+            sns.stripplot(
+                x='group',
+                y='TU',
+                data=plot_df,
+                order=plot_order,
+                color='#545454',
+                alpha=0.3,
+                jitter=0.1,
+                size=4,
+                ax=ax,
+            )
+
+        present_groups = set(plot_df['group'])
+        valid_pairs = [pair for pair in pairs if pair[0] in present_groups and pair[1] in present_groups]
+        if valid_pairs:
+            annotator = Annotator(ax, valid_pairs, data=plot_df, x='group', y='TU', order=plot_order)
+            annotator.configure(
+                test='Mann-Whitney',
+                text_format='star',
+                loc='inside',
+                verbose=0,
+            )
+            annotator.apply_and_annotate()
+
+        gene = tx.split("-", 1)[-1]
+        tx_id = tx.split("-", 1)[0]
+        ax.set_title(f"{gene}\n{tx_id}", fontsize=11)
+        ax.set_xlabel('')
+        ax.set_ylabel('TU')
+        sns.despine(ax=ax)
+
+    for ax in flat_axes[len(selected_tx):]:
+        ax.set_visible(False)
+
+    fig.suptitle(f'Validation {class_label} marker transcripts', fontsize=16, y=1.02)
+    plt.tight_layout()
+    plt.show()
+
+
+plot_validation_marker_boxplots(val_dut_class1, Class1_sig_genelist, clin, 'Class1', show_strip=False)
+plot_validation_marker_boxplots(val_dut_class3, Class3_sig_genelist, clin, 'Class3', show_strip=False)
+
+#%%
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 # %%
 merged_forfig = merged_forfig[merged_forfig['group'] != 'CR'] 
@@ -4062,3 +4497,83 @@ plt.savefig('/home/jiye/jiye/copycomparison/GENCODEquant/SEV_prepost/merged_cov5
 plt.show()
 
 # %%
+#####^^^^ Baseline DUT vs. AR DUT check ########################
+
+def tx_to_gene_local(tx_id):
+    tx_id = str(tx_id)
+    return tx_id.split("-", 1)[1] if "-" in tx_id else tx_id
+
+
+def summarize_overlap_and_go_local(
+    tx_list_a,
+    tx_list_b,
+    label_a,
+    label_b,
+    color="#FEB24C",
+    fdr_cutoff=0.1,
+    top_terms=10
+):
+    set_a = set(tx_list_a)
+    set_b = set(tx_list_b)
+    overlap_tx = sorted(set_a.intersection(set_b))
+    overlap_genes = sorted(set(tx_to_gene_local(tx) for tx in overlap_tx))
+
+    print(f"{label_a} n = {len(set_a)}")
+    print(f"{label_b} n = {len(set_b)}")
+    print(f"Overlap n = {len(overlap_tx)}")
+    print("Overlap transcripts:", overlap_tx)
+    print("Overlap genes:", overlap_genes)
+
+    if len(overlap_genes) == 0:
+        print("No overlap genes for GO enrichment.")
+        return overlap_tx, pd.DataFrame()
+
+    sig = enrichr_and_plot_bar(
+        genes=overlap_genes,
+        title=f"{label_a} vs {label_b}",
+        color=color,
+        gene_sets=("GO_Biological_Process_2021", "Reactome_2022"),
+        fdr_cutoff=fdr_cutoff,
+        top_terms=top_terms
+    )
+
+    if sig is not None and not sig.empty:
+        print(sig[["Gene_set", "Term", "Adjusted P-value"]].head(20).to_string(index=False))
+    else:
+        print("No significant GO/Reactome terms found.")
+
+    return overlap_tx, sig
+
+
+class1_baseline_dut = sorted(set(baseline_dutlist).intersection(set(class1)))
+class1_ar_dut = sorted(set(ARdutlist).intersection(set(class1)))
+
+print("\n===== Class1 baseline DUT vs Class1 AR DUT =====")
+class1_overlap_tx, class1_overlap_sig = summarize_overlap_and_go_local(
+    tx_list_a=class1_baseline_dut,
+    tx_list_b=class1_ar_dut,
+    label_a="Class1 baselineDUT",
+    label_b="Class1 ARDUT",
+    color="#E9A03B",
+    fdr_cutoff=0.1,
+    top_terms=10
+)
+
+
+class1_ar_dut_sig = sorted(
+    tx for tx in class1_ar_dut
+    if tx_to_gene_local(tx) in set(Class1_sig_genelist)
+)
+class1_baseline_vs_sig_overlap = sorted(
+    set(class1_baseline_dut).intersection(set(class1_ar_dut_sig))
+)
+
+print("\n===== Class1 baseline DUT vs Class1_sig_genelist-matched Class1 AR DUT =====")
+print(f"Class1_sig_genelist n = {len(Class1_sig_genelist)}")
+print(f"Class1 AR DUT matching Class1_sig_genelist n = {len(class1_ar_dut_sig)}")
+print(f"Overlap n = {len(class1_baseline_vs_sig_overlap)}")
+print("Overlap transcripts:", class1_baseline_vs_sig_overlap)
+print(
+    "Overlap genes:",
+    sorted(set(tx_to_gene_local(tx) for tx in class1_baseline_vs_sig_overlap))
+)
