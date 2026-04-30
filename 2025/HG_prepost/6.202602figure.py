@@ -2224,10 +2224,11 @@ SF_genes = [
 ]
 
 NMD_genes = ['UPF1', 'UPF2', 'UPF3A','UPF3B','SMG1','SMG5','SMG6','SMG7']
+#NMD_genes = ['SMG1', 'SMG2']
 
 geneexp = pd.read_csv('/home/jiye/jiye/copycomparison/GENCODEquant/SEV_prepost/merged_cov5_80_gene_TPM.txt', sep='\t', index_col=0)
 #geneexp = geneexp.loc[geneexp.index.isin(SF_genes),geneexp.columns.isin(mainlist)]
-geneexp = geneexp.loc[geneexp.index.isin(SF_genes),:]
+geneexp = geneexp.loc[geneexp.index.isin(NMD_genes),:]
 geneexp = geneexp.loc[:,geneexp.columns.isin(ARlist)]
 pre_gene = geneexp.iloc[:, 1::2]
 post_gene = geneexp.iloc[:, 0::2]
@@ -2272,7 +2273,7 @@ res_df = pd.DataFrame(stats_results).set_index('Gene')
 # (증가/감소 모두 포함하려면 abs(), 증가만 보려면 abs() 제거)
 target_genes = res_df[
     (res_df['p_val'] < 0.05) & 
-    (res_df['log2FC'].abs() > 1)
+    (res_df['log2FC'].abs() > 0.6)
 ].sort_values('p_val').index.tolist()
 
 num_genes = len(target_genes)
@@ -3634,6 +3635,116 @@ plot_diverging_bar(ir_counts, 'IR', axes[1])
 plt.tight_layout()
 #plt.savefig('/home/jiye/jiye/copycomparison/GENCODEquant/SEV_prepost/merged_cov5_analysis/0210figures/40_spliceevent_barplot.pdf', dpi=300, bbox_inches='tight')
 plt.show()
+
+#%%
+####^^ AS gene list GO ##############
+
+import gseapy as gp
+
+transinfo = pd.read_csv('/home/jiye/jiye/copycomparison/GENCODEquant/SEV_prepost/cov5_filtered_transcripts_with_gene_info.tsv', sep='\t')
+geneinfo = transinfo[['mstrg_gene_id', 'gene_name']].drop_duplicates()
+
+AS_PVAL_CUTOFF = 0.05
+AS_DPSI_CUTOFF = 0.0
+GO_FDR_CUTOFF = 0.1
+GO_LIBRARIES = ["GO_Biological_Process_2021", "Reactome_2022"]
+
+
+def get_all_as_sig_df(psi_df, geneinfo, pval_cutoff=AS_PVAL_CUTOFF, dpsi_cutoff=AS_DPSI_CUTOFF):
+    """RI에 한정하지 않고 전체 AS event에서 significant protein-coding gene row를 추출."""
+    sig_psi = psi_df[
+        (psi_df['pval'] < pval_cutoff) &
+        (psi_df['d_psi'].abs() > dpsi_cutoff)
+    ].copy()
+
+    sig_psi = pd.merge(
+        sig_psi,
+        geneinfo,
+        left_on='gene_id',
+        right_on='mstrg_gene_id',
+        how='inner'
+    )
+
+    sig_psi = sig_psi.dropna(subset=['gene_name']).copy()
+    sig_psi['gene_name'] = sig_psi['gene_name'].astype(str)
+    sig_psi = sig_psi[
+        sig_psi['gene_name'].ne('nan') &
+        sig_psi['gene_name'].isin(proteincodinglist)
+    ]
+    return sig_psi
+
+
+def get_all_as_sig_genes(psi_df, geneinfo, pval_cutoff=AS_PVAL_CUTOFF, dpsi_cutoff=AS_DPSI_CUTOFF):
+    sig_psi = get_all_as_sig_df(psi_df, geneinfo, pval_cutoff=pval_cutoff, dpsi_cutoff=dpsi_cutoff)
+    return sorted(sig_psi['gene_name'].unique())
+
+
+def run_simple_go_enrichment(genes, label, gene_sets=GO_LIBRARIES, fdr_cutoff=GO_FDR_CUTOFF, top_terms=20):
+    genes = sorted(set(g for g in genes if pd.notna(g)))
+    print(f"\n===== {label}: all AS significant genes GO enrichment =====")
+    print(f"Input genes n = {len(genes)}")
+
+    if len(genes) == 0:
+        print("No genes for GO enrichment.")
+        return pd.DataFrame()
+
+    enr = gp.enrichr(
+        gene_list=genes,
+        gene_sets=gene_sets,
+        organism="Human",
+        outdir=None,
+        cutoff=fdr_cutoff
+    )
+
+    res = enr.results.copy()
+    sig = res[res["Adjusted P-value"] < fdr_cutoff].copy()
+
+    if sig.empty:
+        print(f"No significant GO/Reactome terms at FDR < {fdr_cutoff}.")
+        return sig
+
+    sig["nlog10_FDR"] = -np.log10(sig["Adjusted P-value"] + 1e-300)
+    sig = sig.sort_values("nlog10_FDR", ascending=False).reset_index(drop=True)
+
+    print(
+        sig[["Gene_set", "Term", "Adjusted P-value", "Overlap", "Genes"]]
+        .head(top_terms)
+        .to_string(index=False)
+    )
+    return sig
+
+
+# RI에 한정하지 않은 전체 AS significant gene list
+ar_all_as_sig_df = get_all_as_sig_df(ar_psi, geneinfo)
+ir_all_as_sig_df = get_all_as_sig_df(ir_psi, geneinfo)
+
+all_as_gene_dict = {
+    "AR-All AS": sorted(ar_all_as_sig_df['gene_name'].unique()),
+    "IR-All AS": sorted(ir_all_as_sig_df['gene_name'].unique()),
+}
+all_as_gene_dict["AR+IR-All AS"] = sorted(
+    set(all_as_gene_dict["AR-All AS"]) | set(all_as_gene_dict["IR-All AS"])
+)
+
+all_as_event_gene_counts = pd.concat(
+    [
+        ar_all_as_sig_df
+        .groupby('event')['gene_name'].nunique()
+        .rename('AR'),
+        ir_all_as_sig_df
+        .groupby('event')['gene_name'].nunique()
+        .rename('IR'),
+    ],
+    axis=1
+).fillna(0).astype(int)
+
+print("\nAll AS significant genes by event type")
+print(all_as_event_gene_counts)
+
+all_as_go_sig = {
+    label: run_simple_go_enrichment(genes, label)
+    for label, genes in all_as_gene_dict.items()
+}
 
 # %%
 ####^^^^ gDUT list vs. AS list ########

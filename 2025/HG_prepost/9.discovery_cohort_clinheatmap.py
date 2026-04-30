@@ -138,7 +138,7 @@ def draw_group_header(ax, x_positions, ar_count, ir_count, gap):
                 linewidth=0,
             )
         )
-        ax.text(center, 4.22, label, ha="center", va="center", fontsize=10)
+        ax.text(center, 4.22, label, ha="center", va="center", fontsize=9, fontweight="bold")
 
 
 def add_discrete_legend(ax, title, labels_and_colors, x, y, box_size=0.24, line_height=0.36):

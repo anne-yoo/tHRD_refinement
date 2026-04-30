@@ -23,7 +23,7 @@ from statannot import add_stat_annotation
 from matplotlib_venn import venn2
 rcParams['pdf.fonttype'] = 42  
 rcParams['ps.fonttype'] = 42
-rcParams['font.family'] = 'Helvetica'
+rcParams['font.family'] = 'Arial'
 
 plt.rcParams.update({
 'axes.titlesize': 13,     # 제목 글꼴 크기
@@ -1430,5 +1430,152 @@ plt.show()
 plt.close(fig)
 
 print(f'Saved strong SF delta boxplots to: {save_path}')
+
+# %%
+
+####^^ Relaxed DEG GO enrichment: AR / IR ####
+deg_go_outdir = '/home/jiye/jiye/copycomparison/GENCODEquant/figures/DEG_GO_enrichment_relaxed'
+os.makedirs(deg_go_outdir, exist_ok=True)
+
+
+def get_relaxed_deg_genes(deg_df, label, pval_cutoff=0.05, log2fc_cutoff=0.6):
+    gene_col_candidates = ['gene_name', 'Gene Symbol', 'GeneSymbol', 'symbol']
+    gene_col = next((col for col in gene_col_candidates if col in deg_df.columns), None)
+    required_cols = ['p_value', 'log2FC']
+
+    if gene_col is None:
+        raise ValueError(f'[{label}] Could not find a gene symbol column in DEG table.')
+    missing_cols = [col for col in required_cols if col not in deg_df.columns]
+    if missing_cols:
+        raise ValueError(f'[{label}] Missing required DEG columns: {missing_cols}')
+
+    deg_cut = deg_df.loc[
+        (pd.to_numeric(deg_df['p_value'], errors='coerce') < pval_cutoff)
+        & (pd.to_numeric(deg_df['log2FC'], errors='coerce').abs() > log2fc_cutoff)
+    ].copy()
+
+    genes = (
+        deg_cut[gene_col]
+        .dropna()
+        .astype(str)
+        .str.strip()
+        .replace('', np.nan)
+        .dropna()
+        .drop_duplicates()
+        .to_list()
+    )
+
+    print(
+        f'[{label}] relaxed DEG genes: {len(genes)} '
+        f'(p_value < {pval_cutoff}, |log2FC| > {log2fc_cutoff})'
+    )
+    return genes, deg_cut
+
+
+def format_go_term(term):
+    return re.sub(r'\s*\(GO:\d+\)\s*$', '', str(term))
+
+
+def run_deg_go_enrichment(
+    genes,
+    label,
+    gene_set='GO_Biological_Process_2021',
+    fdr_cutoff=0.1,
+    top_terms=20
+):
+    if len(genes) == 0:
+        print(f'[{label}] No DEG genes for GO enrichment.')
+        return pd.DataFrame()
+
+    enr = gp.enrichr(
+        gene_list=genes,
+        gene_sets=[gene_set],
+        organism='Human',
+        outdir=None
+    )
+
+    res = enr.results.copy().sort_values('Adjusted P-value')
+    res.to_csv(f'{deg_go_outdir}/{label}_relaxed_DEG_GO_enrichment_all.tsv', sep='\t', index=False)
+
+    sig = res.loc[res['Adjusted P-value'] < fdr_cutoff].copy()
+    sig.to_csv(f'{deg_go_outdir}/{label}_relaxed_DEG_GO_enrichment_FDR{fdr_cutoff}.tsv', sep='\t', index=False)
+
+    print(f'[{label}] GO terms with FDR < {fdr_cutoff}: {sig.shape[0]}')
+    return sig
+
+
+def plot_deg_go_barplot(sig_df, label, color, fdr_cutoff=0.1, top_terms=20):
+    if sig_df.empty:
+        print(f'[{label}] No significant GO terms to plot.')
+        return None
+
+    plot_df = sig_df.copy()
+    plot_df['nlog10_FDR'] = -np.log10(plot_df['Adjusted P-value'].clip(lower=1e-300))
+    plot_df['Term_plot'] = plot_df['Term'].apply(format_go_term)
+    plot_df = plot_df.sort_values('Adjusted P-value').head(top_terms)
+    plot_df = plot_df.sort_values('nlog10_FDR', ascending=False)
+
+    fig_height = max(3.2, 0.32 * plot_df.shape[0] + 1.2)
+    fig, ax = plt.subplots(figsize=(6.2, fig_height))
+
+    sns.barplot(
+        data=plot_df,
+        x='nlog10_FDR',
+        y='Term_plot',
+        color=color,
+        ax=ax
+    )
+
+    ax.axvline(-np.log10(fdr_cutoff), color='grey', linestyle='--', linewidth=1)
+    ax.set_title(f'{label} relaxed DEG GO enrichment')
+    ax.set_xlabel('-log10(FDR)')
+    ax.set_ylabel('')
+    ax.grid(axis='x', linestyle='--', alpha=0.3)
+    ax.grid(axis='y', visible=False)
+    sns.despine(ax=ax)
+
+    plt.tight_layout()
+    save_path = f'{deg_go_outdir}/{label}_relaxed_DEG_GO_FDR{fdr_cutoff}_barplot.pdf'
+    plt.savefig(save_path, dpi=300, bbox_inches='tight')
+    plt.show()
+    plt.close(fig)
+    print(f'[{label}] Saved DEG GO barplot to: {save_path}')
+
+    return plot_df
+
+
+print('\n===== Relaxed DEG GO enrichment =====')
+deg_go_specs = [
+    ('AR', ARdeg, '#F28E2B'),
+    ('IR', IRdeg, '#5AAE61')
+]
+
+for deg_label, deg_df, deg_color in deg_go_specs:
+    deg_genes, deg_cut = get_relaxed_deg_genes(
+        deg_df,
+        deg_label,
+        pval_cutoff=0.05,
+        log2fc_cutoff=0.6
+    )
+    deg_cut.to_csv(
+        f'{deg_go_outdir}/{deg_label}_relaxed_DEG_genes_pval005_log2FC06.tsv',
+        sep='\t',
+        index=False
+    )
+
+    deg_go_sig = run_deg_go_enrichment(
+        genes=deg_genes,
+        label=deg_label,
+        gene_set='GO_Biological_Process_2021',
+        fdr_cutoff=0.1,
+        top_terms=20
+    )
+    plot_deg_go_barplot(
+        sig_df=deg_go_sig,
+        label=deg_label,
+        color=deg_color,
+        fdr_cutoff=0.1,
+        top_terms=20
+    )
 
 # %%
