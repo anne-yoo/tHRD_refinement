@@ -37,12 +37,10 @@ from lifelines import KaplanMeierFitter
 from lifelines.statistics import logrank_test
 
 # %%
-val_clin = pd.read_csv('/home/jiye/jiye/copycomparison/gDUTresearch/FINALDATA/2025clinical/83_POLO_clinicalinfo.txt', sep='\t', index_col=0)
-LOHscore = pd.read_csv('/home/jiye/jiye/copycomparison/gDUTresearch/FINALDATA/2025clinical/LOHscore_ACT.txt', sep='\t', index_col=0)
+val_clin = pd.read_csv('/home/jiye/jiye/copycomparison/GENCODEquant/POLO_hg38/POLO_83_newdata2026.txt', sep='\t', index_col=0)
 geneexp = pd.read_csv('/home/jiye/jiye/copycomparison/GENCODEquant/POLO_hg38/merged_83_gene_TPM.txt', sep='\t', index_col=0)
 transexp = pd.read_csv('/home/jiye/jiye/copycomparison/GENCODEquant/POLO_hg38/merged_83_transcript_TPM.txt', sep='\t', index_col=0)
 
-val_clin = pd.merge(val_clin, LOHscore, left_index=True, right_index=True, how='left')
 majorminor = pd.read_csv('/home/jiye/jiye/copycomparison/GENCODEquant/POLO_hg38/merged_83_cov5_majorminorlist.txt', sep='\t')
 sqanti = pd.read_csv('/home/jiye/jiye/copycomparison/GENCODEquant/POLO_hg38/sqantioutput/sqanti_classification.txt', sep='\t')
 sqanti.dropna(axis=1, how='all', inplace=True)

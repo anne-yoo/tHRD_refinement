@@ -15,6 +15,7 @@ from matplotlib.patches import Rectangle
 INPUT_PATH = "/home/jiye/jiye/copycomparison/gDUTresearch/FINALDATA/withYNK/112_PARPi_clinicalinfo.txt"
 EXPRESSION_HEADER_PATH = "/home/jiye/jiye/copycomparison/GENCODEquant/SEV_pre/111_pre/forval_111_gene_TPM.txt"
 OUTPUT_PATH = "/home/jiye/jiye/copycomparison/GENCODEquant/figures/validation_cohort_clinheatmap.pdf"
+OUTPUT_PATH_AR_IR = "/home/jiye/jiye/copycomparison/GENCODEquant/figures/validation_cohort_clinheatmap_AR_IR.pdf"
 GHRD_THRESHOLD = 42.0
 ARIAL_FONT_FILES = [
     "/usr/share/fonts/truetype/msttcorefonts/Arial.ttf",
@@ -35,6 +36,10 @@ BRCA_COLORS = {
     "1": "#D73027",
     "0": "#E6E6E6",
 }
+LINE_COLORS = {
+    "1L": "#2B6CB0",
+    ">=2L": "#A6CEE3",
+}
 GHRD_COLORS = {
     "high": "#6A51A3",
     "low": "#DCD6F7",
@@ -44,6 +49,10 @@ DRUG_COLORS = {
     "Olaparib": "#F26786",
     "Niraparib": "#38B7AD",
     "Rucaparib": "#8E3A8C",
+}
+PURPOSE_COLORS = {
+    "maintenance": "#6BAED6",
+    "salvage": "#E6AB02",
 }
 
 
@@ -92,6 +101,12 @@ def ghrd_group(score):
     return "low"
 
 
+def line_group(line_num):
+    if line_num == 1:
+        return "1L"
+    return ">=2L"
+
+
 def response_group(response, recur):
     if response == "1" and recur == "1.0":
         return "AR"
@@ -135,14 +150,17 @@ def load_clinical_rows(path):
         if pfs is None:
             raise ValueError(f"Missing PFS value for sample: {row['sample_id']!r}")
 
+        parsed_line = parse_line_num(row["line"])
         records.append(
             {
                 "sample_id": row["sample_id"],
                 "response": response,
                 "recur": recur,
                 "group": group,
-                "line_num": parse_line_num(row["line"]),
+                "line_num": parsed_line,
+                "line_group": line_group(parsed_line),
                 "drug": row["drug"],
+                "purpose": row["setting"],
                 "brca": str(row["BRCAmt"]).strip(),
                 "ghrd_score": ghrd_score,
                 "ghrd_group": ghrd_group(ghrd_score),
@@ -154,9 +172,17 @@ def load_clinical_rows(path):
     return records
 
 
-def sort_records(records):
-    group_order = ["AR", "IR", "CR"]
-    grouped_records = {group: [record for record in records if record["group"] == group] for group in group_order}
+def sort_records(records, group_order):
+    grouped_records = {}
+    for group in group_order:
+        group_records = [record for record in records if record["group"] == group]
+        grouped_records[group] = sorted(
+            group_records,
+            key=lambda record: (
+                0 if record["brca"] == "1" else 1,
+                record["order"],
+            ),
+        )
     sorted_records = []
     for group in group_order:
         sorted_records.extend(grouped_records[group])
@@ -177,9 +203,9 @@ def draw_cell_row(ax, x_positions, y_center, colors, cell_width=0.78, cell_heigh
         )
 
 
-def draw_group_header(ax, x_positions, group_counts):
+def draw_group_header(ax, x_positions, group_counts, group_order):
     start_idx = 0
-    for label in ["AR", "IR", "CR"]:
+    for label in group_order:
         count = group_counts[label]
         color = GROUP_COLORS[label]
         if count == 0:
@@ -191,7 +217,7 @@ def draw_group_header(ax, x_positions, group_counts):
 
         ax.add_patch(
             Rectangle(
-                (left, 4.34),
+                (left, 4.90),
                 right - left,
                 0.22,
                 facecolor=color,
@@ -199,11 +225,11 @@ def draw_group_header(ax, x_positions, group_counts):
                 linewidth=0,
             )
         )
-        ax.text(center, 4.80, label, ha="center", va="center", fontsize=9, fontweight="bold")
+        ax.text(center, 5.36, label, ha="center", va="center", fontsize=9, fontweight="bold")
         start_idx += count
 
 
-def add_discrete_legend(ax, title, labels_and_colors, x, y, box_size=0.22, line_height=0.32):
+def add_discrete_legend(ax, title, labels_and_colors, x, y, box_size=0.19, line_height=0.28):
     ax.text(x, y, title, ha="left", va="center", fontsize=8.5)
     y -= line_height
     for label, color in labels_and_colors:
@@ -222,102 +248,83 @@ def add_discrete_legend(ax, title, labels_and_colors, x, y, box_size=0.22, line_
     return y
 
 
-def add_line_legend(ax, cmap, norm, min_line, max_line, x, y):
-    ax.text(x, y, "Line", ha="left", va="center", fontsize=8.5)
-    y -= 0.32
-    box_gap = 0.29
-    for idx, line_num in enumerate(range(min_line, max_line + 1)):
-        color = cmap(norm(line_num))
-        ax.add_patch(
-            Rectangle(
-                (x + idx * box_gap, y - 0.10),
-                0.21,
-                0.21,
-                facecolor=color,
-                edgecolor="#666666",
-                linewidth=0.25,
-            )
-        )
-    left_label_x = x - 0.14
-    right_label_x = x + (max_line - min_line) * box_gap + 0.36
-    ax.text(left_label_x, y - 0.32, f"{min_line}L", ha="left", va="center", fontsize=7.5)
-    ax.text(
-        right_label_x,
-        y - 0.32,
-        f"{max_line}L",
-        ha="right",
-        va="center",
-        fontsize=7.5,
-    )
-    return y - 0.68
-
-
-def plot_clinical_heatmap(records, output_path):
-    sorted_records, grouped_records = sort_records(records)
-    group_counts = {group: len(grouped_records[group]) for group in ["AR", "IR", "CR"]}
+def plot_clinical_heatmap(records, output_path, group_order):
+    sorted_records, grouped_records = sort_records(records, group_order)
+    group_counts = {group: len(grouped_records[group]) for group in group_order}
 
     x_positions = [float(idx) for idx in range(len(sorted_records))]
 
-    line_values = [record["line_num"] for record in sorted_records]
     pfs_values = [record["pfs"] for record in sorted_records]
-    min_line = min(line_values)
-    max_line = max(line_values)
     min_pfs = min(pfs_values)
     max_pfs = max(pfs_values)
 
-    line_cmap = LinearSegmentedColormap.from_list("line_navy", ["#D9E8F5", "#08306B"])
     pfs_cmap = LinearSegmentedColormap.from_list("pfs_greys", ["#F4F4F4", "#111111"])
-    line_norm = Normalize(vmin=min_line, vmax=max_line)
     pfs_norm = Normalize(vmin=min_pfs, vmax=max_pfs)
 
-    line_colors = [line_cmap(line_norm(record["line_num"])) for record in sorted_records]
     brca_colors = [BRCA_COLORS.get(record["brca"], "#BDBDBD") for record in sorted_records]
+    line_colors = [LINE_COLORS[record["line_group"]] for record in sorted_records]
     ghrd_colors = [GHRD_COLORS[record["ghrd_group"]] for record in sorted_records]
     drug_colors = [DRUG_COLORS.get(record["drug"], "#999999") for record in sorted_records]
+    purpose_colors = [PURPOSE_COLORS.get(record["purpose"], "#999999") for record in sorted_records]
     pfs_colors = [pfs_cmap(pfs_norm(record["pfs"])) for record in sorted_records]
 
     max_x = max(x_positions)
     legend_x = max_x + 2.0
     fig_width = max(12.0, len(sorted_records) * 0.105 + 4.0)
-    fig, ax = plt.subplots(figsize=(fig_width, 3.05))
+    fig, ax = plt.subplots(figsize=(fig_width, 3.35))
     ax.set_xlim(-5.00, max_x + 9.4)
-    ax.set_ylim(-0.05, 5.10)
+    ax.set_ylim(-0.05, 5.70)
     ax.axis("off")
 
-    draw_group_header(ax, x_positions, group_counts)
+    draw_group_header(ax, x_positions, group_counts, group_order)
 
     row_y = {
-        "Line": 3.72,
-        "BRCAmt": 3.08,
-        "gHRD": 2.44,
-        "Drug": 1.80,
-        "PFS": 1.16,
+        "BRCAmt": 4.30,
+        "Line": 3.70,
+        "gHRD": 3.10,
+        "Drug": 2.50,
+        "Purpose": 1.90,
+        "PFS": 1.30,
     }
     label_x = -0.95
     for label, y_pos in row_y.items():
         ax.text(label_x, y_pos, label, ha="right", va="center", fontsize=9)
 
-    draw_cell_row(ax, x_positions, row_y["Line"], line_colors)
     draw_cell_row(ax, x_positions, row_y["BRCAmt"], brca_colors)
+    draw_cell_row(ax, x_positions, row_y["Line"], line_colors)
     draw_cell_row(ax, x_positions, row_y["gHRD"], ghrd_colors)
     draw_cell_row(ax, x_positions, row_y["Drug"], drug_colors)
+    draw_cell_row(ax, x_positions, row_y["Purpose"], purpose_colors)
     draw_cell_row(ax, x_positions, row_y["PFS"], pfs_colors)
 
-    y_after_line = add_line_legend(ax, line_cmap, line_norm, min_line, max_line, legend_x, 4.62)
+    legend_y = add_discrete_legend(
+        ax,
+        "Line",
+        [("1L", LINE_COLORS["1L"]), (">=2L", LINE_COLORS[">=2L"])],
+        legend_x,
+        5.20,
+    )
     present_drugs = [drug for drug in ["Olaparib", "Niraparib", "Rucaparib"] if any(r["drug"] == drug for r in sorted_records)]
-    add_discrete_legend(
+    legend_y = add_discrete_legend(
         ax,
         "Drug",
         [(drug, DRUG_COLORS[drug]) for drug in present_drugs],
         legend_x,
-        y_after_line,
+        legend_y - 0.10,
     )
-    add_discrete_legend(
+    legend_y = add_discrete_legend(
+        ax,
+        "Purpose",
+        [("Maintenance", PURPOSE_COLORS["maintenance"]), ("Salvage", PURPOSE_COLORS["salvage"])],
+        legend_x,
+        legend_y - 0.10,
+    )
+    legend_y = add_discrete_legend(
         ax,
         "BRCAmt",
         [("Mutated", BRCA_COLORS["1"]), ("Wild-type", BRCA_COLORS["0"])],
         legend_x,
-        2.70,
+        legend_y - 0.10,
     )
     add_discrete_legend(
         ax,
@@ -328,10 +335,10 @@ def plot_clinical_heatmap(records, output_path):
             ("NA", GHRD_COLORS["na"]),
         ],
         legend_x,
-        1.76,
+        legend_y - 0.10,
     )
 
-    cax = fig.add_axes([0.895, 0.22, 0.010, 0.26])
+    cax = fig.add_axes([0.895, 0.18, 0.010, 0.24])
     sm = plt.cm.ScalarMappable(cmap=pfs_cmap, norm=pfs_norm)
     sm.set_array([])
     cbar = fig.colorbar(sm, cax=cax)
@@ -350,8 +357,10 @@ def plot_clinical_heatmap(records, output_path):
     }
     return {
         "group_counts": group_counts,
-        "min_line": min_line,
-        "max_line": max_line,
+        "line_counts": {
+            "1L": sum(record["line_group"] == "1L" for record in sorted_records),
+            ">=2L": sum(record["line_group"] == ">=2L" for record in sorted_records),
+        },
         "ghrd_counts": ghrd_counts,
         "output_path": output_path,
     }
@@ -360,15 +369,17 @@ def plot_clinical_heatmap(records, output_path):
 def main():
     font_name = configure_fonts()
     records = load_clinical_rows(INPUT_PATH)
-    summary = plot_clinical_heatmap(records, OUTPUT_PATH)
+    summary = plot_clinical_heatmap(records, OUTPUT_PATH, ["CR", "AR", "IR"])
+    ar_ir_records = [record for record in records if record["group"] in {"AR", "IR"}]
+    ar_ir_summary = plot_clinical_heatmap(ar_ir_records, OUTPUT_PATH_AR_IR, ["AR", "IR"])
     print(f"font={font_name}")
     print(
         "groups: "
+        f"CR={summary['group_counts']['CR']}, "
         f"AR={summary['group_counts']['AR']}, "
-        f"IR={summary['group_counts']['IR']}, "
-        f"CR={summary['group_counts']['CR']}"
+        f"IR={summary['group_counts']['IR']}"
     )
-    print(f"line range={summary['min_line']}-{summary['max_line']}")
+    print(f"line groups: 1L={summary['line_counts']['1L']}, >=2L={summary['line_counts']['>=2L']}")
     print(
         "gHRD threshold=42: "
         f">=42={summary['ghrd_counts']['high']}, "
@@ -376,6 +387,23 @@ def main():
         f"NA={summary['ghrd_counts']['na']}"
     )
     print(f"output={summary['output_path']}")
+    print(
+        "AR/IR only groups: "
+        f"AR={ar_ir_summary['group_counts']['AR']}, "
+        f"IR={ar_ir_summary['group_counts']['IR']}"
+    )
+    print(
+        "AR/IR only line groups: "
+        f"1L={ar_ir_summary['line_counts']['1L']}, "
+        f">=2L={ar_ir_summary['line_counts']['>=2L']}"
+    )
+    print(
+        "AR/IR only gHRD threshold=42: "
+        f">=42={ar_ir_summary['ghrd_counts']['high']}, "
+        f"<42={ar_ir_summary['ghrd_counts']['low']}, "
+        f"NA={ar_ir_summary['ghrd_counts']['na']}"
+    )
+    print(f"AR/IR only output={ar_ir_summary['output_path']}")
 
 
 if __name__ == "__main__":

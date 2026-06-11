@@ -33,10 +33,17 @@ plt.rcParams.update({
 })
 sns.set_style("ticks")
 
+#%%
+sampleinfo = pd.read_csv('/home/jiye/jiye/copycomparison/gDUTresearch/GEN_FINALDATA/SEV_prepost_80_clinicalinfo.txt', sep='\t', index_col=0)
+
+BRCAmtlist = sampleinfo[sampleinfo['BRCAmut']==1]['sample_full'].to_list()
+BRCAwtlist = sampleinfo[sampleinfo['BRCAmut']==0]['sample_full'].to_list()
+
 # %%
 #####^^^ Paired Wilcoxon DEG ####
 
 geneexp = pd.read_csv('/home/jiye/jiye/copycomparison/GENCODEquant/SEV_prepost/merged_80_gene_TPM.txt',sep='\t', index_col=0)
+
 geneexp['gene_name'] = geneexp.index
 f_gene = geneexp.iloc[:,:-1]
 genesym = geneexp[['gene_name']]
@@ -74,7 +81,7 @@ avg_post = f_gene.iloc[:, ::2].mean(axis=1)
 fold_change = np.log2(avg_post / avg_pre)
 result_df['log2FC'] = fold_change
 
-#result_df.to_csv('/home/jiye/jiye/copycomparison/GENCODEquant/SEV_prepost/merged_analysis/wilcoxon_DEGresult_FC.txt', sep='\t')
+result_df.to_csv('/home/jiye/jiye/copycomparison/GENCODEquant/SEV_prepost/merged_analysis/wilcoxon_DEGresult_FC.txt', sep='\t')
 
 
 #%%
@@ -242,20 +249,21 @@ geneexp['gene_name'] = geneexp.index
 geneexp = geneexp[geneexp.index.isin(proteincodinglist)]
 sampleinfo = pd.read_csv('/home/jiye/jiye/copycomparison/gDUTresearch/GEN_FINALDATA/SEV_prepost_80_clinicalinfo.txt', sep='\t', index_col=0)
 
-#%%
-#sampleinfo = sampleinfo[sampleinfo['purpose']=='maintenance']
-
 responder = sampleinfo[sampleinfo['response']==1]['sample_full']
 nonresponder = sampleinfo[sampleinfo['response']==0]['sample_full']
 responder = responder.to_list()
 nonresponder = nonresponder.to_list()
 
-list = [responder, nonresponder]
+varlist = [responder, nonresponder]
 namelist = ['AR', 'IR']
 
 #%%
 for i in range(2): 
-    f_gene = geneexp[list[i]]
+    ####** BRCAmt filtering #######
+    f_gene = geneexp[BRCAwtlist]
+    ####**#########################
+
+    f_gene = f_gene.loc[:, f_gene.columns.isin(varlist[i])]
     genesym = geneexp[['gene_name']]
     
 
@@ -292,7 +300,7 @@ for i in range(2):
     fold_change = np.log2(avg_post / avg_pre)
     result_df['log2FC'] = fold_change
         
-    result_df.to_csv('/home/jiye/jiye/copycomparison/GENCODEquant/SEV_prepost/merged_cov5_analysis/whole_'+ namelist[i]+'_Wilcoxon_DEGresult_FC.txt', sep='\t')
+    result_df.to_csv('/home/jiye/jiye/copycomparison/GENCODEquant/SEV_prepost/merged_cov5_analysis/BRCAwt_'+ namelist[i]+'_Wilcoxon_DEGresult_FC.txt', sep='\t')
 
 
 
@@ -315,11 +323,11 @@ filtered_trans = transexp.iloc[:, :-1].div(gene_sum.iloc[:, :-1])
 filtered_trans['gene_name'] = filtered_trans.index.str.split("-",n=1).str[1]
 
 #%%
-list = [responder, nonresponder]
+varlist = [responder, nonresponder]
 namelist = ['AR', 'IR']
 
 for i in range(2):
-    degresult = pd.read_csv('/home/jiye/jiye/copycomparison/GENCODEquant/SEV_prepost/merged_cov5_analysis/whole_'+namelist[i]+'_Wilcoxon_DEGresult_FC.txt', sep='\t')
+    degresult = pd.read_csv('/home/jiye/jiye/copycomparison/GENCODEquant/SEV_prepost/merged_cov5_analysis/BRCAmt_'+namelist[i]+'_Wilcoxon_DEGresult_FC.txt', sep='\t')
     
     DEGlist = set(degresult[(degresult['p_value']<0.05) & (np.abs(degresult['log2FC'])>1)]['gene_name'])
     nonDEGlist = set(degresult['gene_name']) - DEGlist
@@ -328,7 +336,10 @@ for i in range(2):
     print(namelist[i]," stable: ", len(nonDEGlist))
 
     variable_trans = filtered_trans[filtered_trans['gene_name'].isin(DEGlist)]
-    variable_trans = variable_trans[list[i]]
+    variable_trans = variable_trans[varlist[i]]
+    ####** BRCAmt filtering #######
+    variable_trans = variable_trans.loc[:,variable_trans.columns.isin(BRCAmtlist)]
+    ####**#########################
 
     variable_dut_pval = []
     
@@ -380,7 +391,10 @@ for i in range(2):
 
     ####^ stable genes: DUT ####
     stable_trans = filtered_trans[filtered_trans['gene_name'].isin(nonDEGlist)]
-    stable_trans = stable_trans[list[i]]
+    stable_trans = stable_trans[varlist[i]]
+    ####** BRCAmt filtering #######
+    stable_trans = stable_trans.loc[:,stable_trans.columns.isin(BRCAmtlist)]
+    ####**#########################
 
     stable_dut_pval = []
     
@@ -435,8 +449,8 @@ for i in range(2):
     print('variable DUT: ', len(variable_DUT))
     print('stable DUT: ', len(stable_DUT))
     
-    variable_result.to_csv('/home/jiye/jiye/copycomparison/GENCODEquant/SEV_prepost/merged_cov5_analysis/whole_'+namelist[i]+'_variable_DUT_Wilcoxon_delta_withna.txt', sep='\t')
-    stable_result.to_csv('/home/jiye/jiye/copycomparison/GENCODEquant/SEV_prepost/merged_cov5_analysis/whole_'+namelist[i]+'_stable_DUT_Wilcoxon_delta_withna.txt', sep='\t')
+    variable_result.to_csv('/home/jiye/jiye/copycomparison/GENCODEquant/SEV_prepost/merged_cov5_analysis/BRCAmt_'+namelist[i]+'_variable_DUT_Wilcoxon_delta_withna.txt', sep='\t')
+    stable_result.to_csv('/home/jiye/jiye/copycomparison/GENCODEquant/SEV_prepost/merged_cov5_analysis/BRCAmt_'+namelist[i]+'_stable_DUT_Wilcoxon_delta_withna.txt', sep='\t')
 
 stable_result
 #%%
@@ -470,7 +484,7 @@ plt.show()
 # %%
 #####^^^ Paired Wilcoxon DUT responder / non-responder WITHOUT GENE STABLE/VARIABLE GROUPING!! ####
 
-list = [responder, nonresponder]
+varlist = [responder, nonresponder]
 namelist = ['responder', 'nonresponder']
 
 for i in range(2):

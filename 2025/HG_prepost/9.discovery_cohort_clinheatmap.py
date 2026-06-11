@@ -27,10 +27,18 @@ BRCA_COLORS = {
     "1": "#D73027",
     "0": "#E6E6E6",
 }
+LINE_COLORS = {
+    "1L": "#2B6CB0",
+    ">=2L": "#A6CEE3",
+}
 DRUG_COLORS = {
     "Olaparib": "#F26786",
     "Niraparib": "#38B7AD",
     "Rucaparib": "#8E3A8C",
+}
+PURPOSE_COLORS = {
+    "maintenance": "#6BAED6",
+    "salvage": "#E6AB02",
 }
 
 
@@ -68,6 +76,12 @@ def parse_float(value, field):
         raise ValueError(f"Could not parse {field} from value: {value!r}") from exc
 
 
+def line_group(line_num):
+    if line_num == 1:
+        return "1L"
+    return ">=2L"
+
+
 def load_clinical_rows(path):
     with open(path, newline="") as handle:
         rows = list(csv.DictReader(handle, delimiter="\t"))
@@ -80,14 +94,17 @@ def load_clinical_rows(path):
         if response not in {"0", "1"}:
             raise ValueError(f"Unexpected response value: {response!r}")
 
+        parsed_line = parse_line_num(row["line"])
         records.append(
             {
                 "sample_id": row["sample_id"],
                 "sample_full": row["sample_full"],
                 "response": response,
                 "group": "AR" if response == "1" else "IR",
-                "line_num": parse_line_num(row["line"]),
+                "line_num": parsed_line,
+                "line_group": line_group(parsed_line),
                 "drug": row["drug"],
+                "purpose": row["purpose"],
                 "brca": str(row["BRCAmut"]).strip(),
                 "interval": parse_float(row["interval"], "interval"),
                 "order": order,
@@ -98,8 +115,14 @@ def load_clinical_rows(path):
 
 
 def sort_records(records):
-    ar_records = [record for record in records if record["group"] == "AR"]
-    ir_records = [record for record in records if record["group"] == "IR"]
+    ar_records = sorted(
+        [record for record in records if record["group"] == "AR"],
+        key=lambda record: (0 if record["brca"] == "1" else 1, record["order"]),
+    )
+    ir_records = sorted(
+        [record for record in records if record["group"] == "IR"],
+        key=lambda record: (0 if record["brca"] == "1" else 1, record["order"]),
+    )
     return ar_records + ir_records, ar_records, ir_records
 
 
@@ -117,7 +140,7 @@ def draw_cell_row(ax, x_positions, y_center, colors, cell_width=0.84, cell_heigh
         )
 
 
-def draw_group_header(ax, x_positions, ar_count, ir_count, gap):
+def draw_group_header(ax, x_positions, ar_count, ir_count):
     segments = [
         ("AR", 0, ar_count, AR_COLOR),
         ("IR", ar_count, ir_count, IR_COLOR),
@@ -130,18 +153,18 @@ def draw_group_header(ax, x_positions, ar_count, ir_count, gap):
 
         ax.add_patch(
             Rectangle(
-                (left, 3.74),
+                (left, 4.34),
                 right - left,
-                0.24,
+                0.22,
                 facecolor=color,
                 edgecolor="none",
                 linewidth=0,
             )
         )
-        ax.text(center, 4.22, label, ha="center", va="center", fontsize=9, fontweight="bold")
+        ax.text(center, 4.80, label, ha="center", va="center", fontsize=9, fontweight="bold")
 
 
-def add_discrete_legend(ax, title, labels_and_colors, x, y, box_size=0.24, line_height=0.36):
+def add_discrete_legend(ax, title, labels_and_colors, x, y, box_size=0.19, line_height=0.28):
     ax.text(x, y, title, ha="left", va="center", fontsize=8.5)
     y -= line_height
     for label, color in labels_and_colors:
@@ -155,111 +178,88 @@ def add_discrete_legend(ax, title, labels_and_colors, x, y, box_size=0.24, line_
                 linewidth=0.35,
             )
         )
-        ax.text(x + 0.46, y, label, ha="left", va="center", fontsize=8)
+        ax.text(x + 0.42, y, label, ha="left", va="center", fontsize=8)
         y -= line_height
     return y
-
-
-def add_line_legend(ax, cmap, norm, min_line, max_line, x, y):
-    ax.text(x, y, "Line", ha="left", va="center", fontsize=8.5)
-    y -= 0.35
-    box_gap = 0.31
-    for idx, line_num in enumerate(range(min_line, max_line + 1)):
-        color = cmap(norm(line_num))
-        ax.add_patch(
-            Rectangle(
-                (x + idx * box_gap, y - 0.11),
-                0.23,
-                0.23,
-                facecolor=color,
-                edgecolor="#666666",
-                linewidth=0.25,
-            )
-        )
-    left_label_x = x - 0.14
-    right_label_x = x + (max_line - min_line) * box_gap + 0.38
-    ax.text(left_label_x, y - 0.34, f"{min_line}L", ha="left", va="center", fontsize=7.5)
-    ax.text(
-        right_label_x,
-        y - 0.34,
-        f"{max_line}L",
-        ha="right",
-        va="center",
-        fontsize=7.5,
-    )
-    return y - 0.78
 
 
 def plot_clinical_heatmap(records, output_path):
     sorted_records, ar_records, ir_records = sort_records(records)
     ar_count = len(ar_records)
     ir_count = len(ir_records)
-    gap = 0.0
 
-    x_positions = []
-    for idx in range(ar_count):
-        x_positions.append(float(idx))
-    for idx in range(ir_count):
-        x_positions.append(float(ar_count + gap + idx))
+    x_positions = [float(idx) for idx in range(len(sorted_records))]
 
-    line_values = [record["line_num"] for record in sorted_records]
     interval_values = [record["interval"] for record in sorted_records]
-    min_line = min(line_values)
-    max_line = max(line_values)
     min_interval = min(interval_values)
     max_interval = max(interval_values)
 
-    line_cmap = LinearSegmentedColormap.from_list("line_navy", ["#D9E8F5", "#08306B"])
     interval_cmap = LinearSegmentedColormap.from_list("interval_greys", ["#F4F4F4", "#111111"])
-    line_norm = Normalize(vmin=min_line, vmax=max_line)
     interval_norm = Normalize(vmin=min_interval, vmax=max_interval)
 
-    line_colors = [line_cmap(line_norm(record["line_num"])) for record in sorted_records]
-    drug_colors = [DRUG_COLORS.get(record["drug"], "#999999") for record in sorted_records]
     brca_colors = [BRCA_COLORS.get(record["brca"], "#BDBDBD") for record in sorted_records]
+    line_colors = [LINE_COLORS[record["line_group"]] for record in sorted_records]
+    drug_colors = [DRUG_COLORS.get(record["drug"], "#999999") for record in sorted_records]
+    purpose_colors = [PURPOSE_COLORS.get(record["purpose"], "#999999") for record in sorted_records]
     interval_colors = [interval_cmap(interval_norm(record["interval"])) for record in sorted_records]
 
     max_x = max(x_positions)
     legend_x = max_x + 1.5
-    fig, ax = plt.subplots(figsize=(9.4, 2.7))
+    fig, ax = plt.subplots(figsize=(9.4, 3.05))
     ax.set_xlim(-5.00, max_x + 8.15)
-    ax.set_ylim(-0.10, 4.55)
+    ax.set_ylim(-0.05, 5.10)
     ax.axis("off")
 
-    draw_group_header(ax, x_positions, ar_count, ir_count, gap)
+    draw_group_header(ax, x_positions, ar_count, ir_count)
 
     row_y = {
-        "Line": 3.08,
-        "BRCAmt": 2.40,
-        "Drug": 1.72,
-        "Interval": 1.04,
+        "BRCAmt": 3.72,
+        "Line": 3.10,
+        "Drug": 2.48,
+        "Purpose": 1.86,
+        "Interval": 1.24,
     }
     label_x = -0.95
     for label, y_pos in row_y.items():
         ax.text(label_x, y_pos, label, ha="right", va="center", fontsize=9)
 
-    draw_cell_row(ax, x_positions, row_y["Line"], line_colors)
     draw_cell_row(ax, x_positions, row_y["BRCAmt"], brca_colors)
+    draw_cell_row(ax, x_positions, row_y["Line"], line_colors)
     draw_cell_row(ax, x_positions, row_y["Drug"], drug_colors)
+    draw_cell_row(ax, x_positions, row_y["Purpose"], purpose_colors)
     draw_cell_row(ax, x_positions, row_y["Interval"], interval_colors)
 
-    y_after_line = add_line_legend(ax, line_cmap, line_norm, min_line, max_line, legend_x, 4.08)
-    add_discrete_legend(
+    legend_y = add_discrete_legend(
+        ax,
+        "Line",
+        [("1L", LINE_COLORS["1L"]), (">=2L", LINE_COLORS[">=2L"])],
+        legend_x,
+        4.62,
+    )
+    present_drugs = [drug for drug in ["Olaparib", "Niraparib", "Rucaparib"] if any(r["drug"] == drug for r in sorted_records)]
+    legend_y = add_discrete_legend(
         ax,
         "Drug",
-        [(drug, DRUG_COLORS[drug]) for drug in ["Olaparib", "Niraparib", "Rucaparib"]],
+        [(drug, DRUG_COLORS[drug]) for drug in present_drugs],
         legend_x,
-        y_after_line,
+        legend_y - 0.10,
+    )
+    legend_y = add_discrete_legend(
+        ax,
+        "Purpose",
+        [("Maintenance", PURPOSE_COLORS["maintenance"]), ("Salvage", PURPOSE_COLORS["salvage"])],
+        legend_x,
+        legend_y - 0.10,
     )
     add_discrete_legend(
         ax,
         "BRCAmt",
         [("Mutated", BRCA_COLORS["1"]), ("Wild-type", BRCA_COLORS["0"])],
         legend_x,
-        1.30,
+        legend_y - 0.10,
     )
 
-    cax = fig.add_axes([0.875, 0.43, 0.015, 0.28])
+    cax = fig.add_axes([0.875, 0.18, 0.015, 0.24])
     sm = plt.cm.ScalarMappable(cmap=interval_cmap, norm=interval_norm)
     sm.set_array([])
     cbar = fig.colorbar(sm, cax=cax)
@@ -274,8 +274,10 @@ def plot_clinical_heatmap(records, output_path):
     return {
         "ar_count": ar_count,
         "ir_count": ir_count,
-        "min_line": min_line,
-        "max_line": max_line,
+        "line_counts": {
+            "1L": sum(record["line_group"] == "1L" for record in sorted_records),
+            ">=2L": sum(record["line_group"] == ">=2L" for record in sorted_records),
+        },
         "output_path": output_path,
     }
 
@@ -286,7 +288,7 @@ def main():
     summary = plot_clinical_heatmap(records, OUTPUT_PATH)
     print(f"font={font_name}")
     print(f"AR={summary['ar_count']}, IR={summary['ir_count']}")
-    print(f"line range={summary['min_line']}-{summary['max_line']}")
+    print(f"line groups: 1L={summary['line_counts']['1L']}, >=2L={summary['line_counts']['>=2L']}")
     print(f"output={summary['output_path']}")
 
 

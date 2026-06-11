@@ -4,14 +4,13 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
+import os
 import statsmodels.stats.multitest as ssm
 import scipy as sp
 import pickle
 import sys
 import re
-import os
 import matplotlib
-import gseapy as gp
 from sklearn.preprocessing import MinMaxScaler
 from sklearn.cluster import KMeans
 from sklearn.decomposition import PCA
@@ -20,9 +19,23 @@ from statsmodels.stats.multitest import multipletests
 from matplotlib import rcParams
 from statannotations.Annotator import Annotator
 from statannot import add_stat_annotation
-from matplotlib_venn import venn2
 rcParams['pdf.fonttype'] = 42  
 rcParams['ps.fonttype'] = 42
+from pathlib import Path
+from matplotlib import font_manager
+
+rcParams['pdf.fonttype'] = 42  
+rcParams['ps.fonttype'] = 42
+for arial_font_path in [
+    "/usr/share/fonts/truetype/msttcorefonts/Arial.ttf",
+    "/usr/share/fonts/truetype/msttcorefonts/arial.ttf",
+    "/usr/share/fonts/truetype/msttcorefonts/Arial_Bold.ttf",
+    "/usr/share/fonts/truetype/msttcorefonts/arialbd.ttf",
+]:
+    if Path(arial_font_path).exists():
+        font_manager.fontManager.addfont(arial_font_path)
+
+plt.rcParams["font.family"] = "Arial"
 rcParams['font.family'] = 'Arial'
 
 plt.rcParams.update({
@@ -36,6 +49,7 @@ plt.rcParams.update({
 'figure.titlesize': 15    # figure 제목 글꼴 크기
 })
 sns.set_style("ticks")
+
 
 # %%
 ####^^ (1-1) group 1 증가 GO enrichment######
@@ -824,12 +838,53 @@ axes[2].legend(handles=phase_handles, frameon=False, loc='upper left', bbox_to_a
 
 plt.tight_layout()
 
-save_path = '/home/jiye/jiye/copycomparison/GENCODEquant/figures/gsva_cell_cycle_AR_IR_prepost_summary.pdf'
+save_path = '/home/jiye/jiye/copycomparison/GENCODEquant/SEV_prepost/2605figs/gsva_cell_cycle_AR_IR_prepost_summary.pdf'
 plt.savefig(save_path, dpi=300, bbox_inches='tight')
 plt.show()
 plt.close(fig)
 
 print(f'Saved GSVA cell-cycle summary figure to: {save_path}')
+#%%
+# Line plot version of the GSVA dominant phase composition.
+gsva_progression_order = ['AR_pre', 'IR_pre', 'IR_post', 'AR_post']
+gsva_phase_comp_pct = (
+    pd.crosstab(
+        gsva_scores['Group'] + '_' + gsva_scores['Time'],
+        gsva_scores['DominantPhase'],
+        normalize='index'
+    )
+    .reindex(index=gsva_progression_order, columns=gsva_phase_order, fill_value=0)
+    .mul(100)
+)
+
+fig, ax = plt.subplots(figsize=(4, 4))
+x = np.arange(len(gsva_progression_order))
+
+for phase in gsva_phase_order:
+    ax.plot(
+        x,
+        gsva_phase_comp_pct[phase].values,
+        marker='o',
+        markersize=7,
+        linewidth=2,
+        color=gsva_phase_palette[phase],
+        label=phase
+    )
+
+ax.set_xticks(x)
+ax.set_xticklabels(gsva_progression_order, rotation=45, ha='right')
+ax.set_xlabel('State Progression')
+ax.set_ylabel('Percentage (%)')
+ax.set_ylim(0, max(50, np.ceil(gsva_phase_comp_pct.to_numpy().max() / 10) * 10))
+ax.legend(frameon=False, loc='center left', bbox_to_anchor=(1.02, 0.5))
+plt.tight_layout()
+
+save_path = '/home/jiye/jiye/copycomparison/GENCODEquant/SEV_prepost/2605figs/gsva_cell_cycle_dominant_phase_progression.pdf'
+plt.savefig(save_path, dpi=300, bbox_inches='tight')
+plt.show()
+plt.close(fig)
+
+print(f'Saved GSVA dominant phase progression figure to: {save_path}')
 
 # %%
 
@@ -1438,7 +1493,7 @@ deg_go_outdir = '/home/jiye/jiye/copycomparison/GENCODEquant/figures/DEG_GO_enri
 os.makedirs(deg_go_outdir, exist_ok=True)
 
 
-def get_relaxed_deg_genes(deg_df, label, pval_cutoff=0.05, log2fc_cutoff=0.6):
+def get_relaxed_deg_genes(deg_df, label, pval_cutoff=0.05, log2fc_cutoff=1):
     gene_col_candidates = ['gene_name', 'Gene Symbol', 'GeneSymbol', 'symbol']
     gene_col = next((col for col in gene_col_candidates if col in deg_df.columns), None)
     required_cols = ['p_value', 'log2FC']
@@ -1576,6 +1631,211 @@ for deg_label, deg_df, deg_color in deg_go_specs:
         color=deg_color,
         fdr_cutoff=0.1,
         top_terms=20
+    )
+
+# %%
+####^^ GSVA dominant phase percentage boxplots: AR and IR separately ####
+gsva_cell_cycle_scores_path = '/home/jiye/jiye/copycomparison/GENCODEquant/figures/gsva_cell_cycle_scores.tsv'
+gsva_phase_boxplot_outdir = '/home/jiye/jiye/copycomparison/GENCODEquant/figures'
+os.makedirs(gsva_phase_boxplot_outdir, exist_ok=True)
+
+gsva_phase_boxplot_df = pd.read_csv(gsva_cell_cycle_scores_path, sep='\t')
+gsva_phase_boxplot_df = gsva_phase_boxplot_df.drop_duplicates(['Group', 'Patient', 'Time']).copy()
+gsva_phase_boxplot_df['Time'] = pd.Categorical(
+    gsva_phase_boxplot_df['Time'],
+    categories=['pre', 'post'],
+    ordered=True
+)
+
+gsva_phase_box_palette = {
+    "AR_pre": "#FFEDA0",
+    "AR_post": "#FEB24C",
+    "IR_pre": "#D9F0D3",
+    "IR_post": "#5AAE61"
+}
+
+
+def exact_mcnemar_pvalue(pre_binary, post_binary):
+    paired = pd.DataFrame({'pre': pre_binary, 'post': post_binary}).dropna()
+    if paired.empty:
+        return np.nan
+
+    b = int(((paired['pre'] == 1) & (paired['post'] == 0)).sum())
+    c = int(((paired['pre'] == 0) & (paired['post'] == 1)).sum())
+    discordant = b + c
+    if discordant == 0:
+        return 1.0
+
+    if hasattr(stats, 'binomtest'):
+        return float(stats.binomtest(
+            min(b, c),
+            n=discordant,
+            p=0.5,
+            alternative='two-sided'
+        ).pvalue)
+
+    return float(stats.binom_test(
+        min(b, c),
+        n=discordant,
+        p=0.5,
+        alternative='two-sided'
+    ))
+
+
+def pvalue_to_stars(pval):
+    if pd.isna(pval):
+        return ''
+    if pval < 0.001:
+        return '***'
+    if pval < 0.01:
+        return '**'
+    if pval < 0.05:
+        return '*'
+    return ''
+
+
+def build_phase_indicator_plot_df(score_df, group_label, phases):
+    sub = score_df[score_df['Group'] == group_label].copy()
+    rows = []
+
+    for _, row in sub.iterrows():
+        for phase in phases:
+            rows.append({
+                'Group': group_label,
+                'Patient': row['Patient'],
+                'Time': row['Time'],
+                'Phase': phase,
+                'Condition': f"{group_label}_{row['Time']}",
+                'Percentage': 100 if row['DominantPhase'] == phase else 0
+            })
+
+    plot_df = pd.DataFrame(rows)
+    plot_df['Phase'] = pd.Categorical(plot_df['Phase'], categories=phases, ordered=True)
+    return plot_df
+
+
+def build_phase_prepost_pvalues(score_df, group_label, phases):
+    sub = score_df[score_df['Group'] == group_label].copy()
+    paired_phase = (
+        sub.pivot_table(
+            index='Patient',
+            columns='Time',
+            values='DominantPhase',
+            aggfunc='first',
+            observed=False
+        )
+        .reindex(columns=['pre', 'post'])
+        .dropna()
+    )
+
+    pvals = {}
+    for phase in phases:
+        pre_binary = (paired_phase['pre'] == phase).astype(int)
+        post_binary = (paired_phase['post'] == phase).astype(int)
+        pvals[phase] = exact_mcnemar_pvalue(pre_binary, post_binary)
+
+    return pvals
+
+
+def plot_group_phase_pct_boxplot(score_df, group_label, save_path):
+    phases = ['G1', 'S', 'G2M']
+    hue_order = [f'{group_label}_pre', f'{group_label}_post']
+    plot_df = build_phase_indicator_plot_df(score_df, group_label, phases)
+    pvals = build_phase_prepost_pvalues(score_df, group_label, phases)
+
+    fig, ax = plt.subplots(figsize=(5, 3))
+
+    sns.boxplot(
+        data=plot_df,
+        x='Phase',
+        y='Percentage',
+        hue='Condition',
+        order=phases,
+        hue_order=hue_order,
+        palette=gsva_phase_box_palette,
+        showfliers=False,
+        width=0.65,
+        linewidth=1.2,
+        ax=ax
+    )
+    sns.stripplot(
+        data=plot_df,
+        x='Phase',
+        y='Percentage',
+        hue='Condition',
+        order=phases,
+        hue_order=hue_order,
+        palette=gsva_phase_box_palette,
+        dodge=True,
+        jitter=0.12,
+        size=3.5,
+        alpha=0.65,
+        linewidth=0,
+        ax=ax
+    )
+
+    if ax.get_legend() is not None:
+        ax.get_legend().remove()
+
+    legend_handles = [
+        matplotlib.patches.Patch(
+            facecolor=gsva_phase_box_palette[condition],
+            edgecolor='black',
+            linewidth=0.5,
+            label=condition.split('_', 1)[1]
+        )
+        for condition in hue_order
+    ]
+    ax.legend(handles=legend_handles, frameon=False, title='', loc='upper right')
+
+    for phase_idx, phase in enumerate(phases):
+        stars = pvalue_to_stars(pvals[phase])
+        if not stars:
+            continue
+
+        x_pre = phase_idx - 0.18
+        x_post = phase_idx + 0.18
+        y_sig = 105
+        tick_height = 3
+        sig_color = gsva_phase_box_palette[f'{group_label}_post']
+
+        ax.plot(
+            [x_pre, x_pre, x_post, x_post],
+            [y_sig, y_sig + tick_height, y_sig + tick_height, y_sig],
+            color=sig_color,
+            linewidth=1.3,
+            clip_on=False
+        )
+        ax.text(
+            (x_pre + x_post) / 2,
+            y_sig + tick_height,
+            stars,
+            color=sig_color,
+            ha='center',
+            va='bottom',
+            fontsize=12,
+            fontweight='bold'
+        )
+
+    ax.set_xlabel('')
+    ax.set_ylabel('Percentage (%)')
+    ax.set_ylim(-5, 115)
+    sns.despine(ax=ax)
+    plt.tight_layout()
+
+    plt.savefig(save_path, dpi=300, bbox_inches='tight')
+    plt.show()
+    plt.close(fig)
+
+    print(f'Saved {group_label} GSVA dominant phase percentage boxplot to: {save_path}')
+    print(f'{group_label} pre vs post exact McNemar p-values: {pvals}')
+
+
+for gsva_group_label in ['AR', 'IR']:
+    plot_group_phase_pct_boxplot(
+        gsva_phase_boxplot_df,
+        gsva_group_label,
+        f'{gsva_phase_boxplot_outdir}/gsva_cell_cycle_{gsva_group_label}_prepost_phase_percentage_boxplot.pdf'
     )
 
 # %%

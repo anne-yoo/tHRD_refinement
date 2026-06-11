@@ -18,9 +18,23 @@ from statsmodels.stats.multitest import multipletests
 from matplotlib import rcParams
 from statannotations.Annotator import Annotator
 from statannot import add_stat_annotation
+from pathlib import Path
+from matplotlib import font_manager
+
+
 rcParams['pdf.fonttype'] = 42  
 rcParams['ps.fonttype'] = 42
-rcParams['font.family'] = 'Helvetica'
+for arial_font_path in [
+    "/usr/share/fonts/truetype/msttcorefonts/Arial.ttf",
+    "/usr/share/fonts/truetype/msttcorefonts/arial.ttf",
+    "/usr/share/fonts/truetype/msttcorefonts/Arial_Bold.ttf",
+    "/usr/share/fonts/truetype/msttcorefonts/arialbd.ttf",
+]:
+    if Path(arial_font_path).exists():
+        font_manager.fontManager.addfont(arial_font_path)
+
+plt.rcParams["font.family"] = "Arial"
+rcParams['font.family'] = 'Arial'
 
 plt.rcParams.update({
 'axes.titlesize': 13,     # 제목 글꼴 크기
@@ -30,7 +44,7 @@ plt.rcParams.update({
 'ytick.labelsize': 13,    # y축 틱 라벨 글꼴 크기
 'legend.fontsize': 13,
 'legend.title_fontsize': 13, # 범례 글꼴 크기|
-'figure.titlesize': 15    # figure 제목 글꼴 크기
+'figure.titlesize': 14    # figure 제목 글꼴 크기
 })
 sns.set_style("ticks")
 
@@ -337,7 +351,7 @@ sns.countplot(
 plt.xlabel('')
 plt.ylabel('Count')
 plt.legend(title='')
-plt.gca().yaxis.set_major_locator(MaxNLocator(integer=True))
+#plt.gca().yaxis.set_major_locator(MaxNLocator(integer=True))
 plt.tight_layout()
 sns.despine()
 plt.savefig('/home/jiye/jiye/copycomparison/GENCODEquant/figures/AR_Class1DUT_barplot.pdf', dpi=300, bbox_inches='tight')
@@ -465,7 +479,7 @@ pairs = [
     ("AR pre", "IR pre"),
 ]
 
-fig, axes = plt.subplots(1, 3, figsize=(16, 5), sharey=False)
+fig, axes = plt.subplots(1, 3, figsize=(13, 4), sharey=False)
 
 for idx, (class_label, class_tx) in enumerate(class_map.items()):
     ax = axes[idx]
@@ -509,7 +523,7 @@ for idx, (class_label, class_tx) in enumerate(class_map.items()):
         annotator.configure(
             test="Mann-Whitney",
             text_format="simple",
-            loc="outside",
+            loc="inside",
             verbose=0,
         )
         annotator.apply_and_annotate()
@@ -523,6 +537,7 @@ for idx, (class_label, class_tx) in enumerate(class_map.items()):
     sns.despine(ax=ax)
 
 plt.tight_layout()
+plt.savefig('/home/jiye/jiye/copycomparison/GENCODEquant/SEV_prepost/2605figs/Class_ARdut_IRdut_gacgac_boxplot.pdf', dpi=300, bbox_inches='tight')
 plt.show()
 
 
@@ -778,7 +793,7 @@ sm.set_array([])
 # Displaying color bar
 cbar = plt.colorbar(sm)
 #cbar.set_label('Overlap Percentage')
-plt.savefig('/home/jiye/jiye/copycomparison/GENCODEquant/figures/40_downclass3_GOtop20.pdf', dpi=300, bbox_inches='tight')
+plt.savefig('/home/jiye/jiye/copycomparison/GENCODEquant/SEV_prepost/2605figs/40_downclass3_GOtop20.pdf', dpi=300, bbox_inches='tight')
 plt.show()
 
 #%%
@@ -830,14 +845,13 @@ def get_top_enrichment(gene_list, label):
     return top5
 
 # 1. 데이터 가져오기
-top5_up = get_top_enrichment(glist3, 'AR Upregulated (Class 1)')
-top5_down = get_top_enrichment(glist4, 'AR Downregulated (Class 3)')
+top5_up = get_top_enrichment(glist, 'AR Upregulated (Class 1)')
+top5_down = get_top_enrichment(glist2, 'AR Downregulated (Class 3)')
 
 # 1. 시각화를 위한 통합 데이터프레임 생성
 df_plot = pd.concat([top5_up, top5_down]).reset_index(drop=True)
 
 # 2. 그래프 설정
-plt.rcParams["font.family"] = "Arial"
 fig, ax = plt.subplots(figsize=(10, 8))
 
 # 3. 바 플롯 그리기
@@ -874,8 +888,123 @@ ax.set_xlim(0, max(df_plot['-log10(FDR)']) * 1.1)
 
 sns.despine()
 plt.tight_layout()
-plt.savefig('/home/jiye/jiye/copycomparison/GENCODEquant/figures/baseline_40_top5_GObarplot.pdf', dpi=300, bbox_inches='tight')
+#plt.savefig('/home/jiye/jiye/copycomparison/GENCODEquant/figures/baseline_40_top5_GObarplot.pdf', dpi=300, bbox_inches='tight')
 plt.show()
+
+#%%
+##^^^^ top 5 from class 1 / 3 - separate barplots ###########
+
+from matplotlib import font_manager
+from matplotlib.ticker import FormatStrFormatter, MultipleLocator
+from pathlib import Path
+
+top5_bar_color = "#1B365D"
+top5_save_dir = "/home/jiye/jiye/copycomparison/GENCODEquant/SEV_prepost/2605figs"
+
+# Arial TTF는 설치되어 있지만 Matplotlib font cache에서 누락될 수 있어 직접 등록
+for arial_font_path in [
+    "/usr/share/fonts/truetype/msttcorefonts/Arial.ttf",
+    "/usr/share/fonts/truetype/msttcorefonts/arial.ttf",
+    "/usr/share/fonts/truetype/msttcorefonts/Arial_Bold.ttf",
+    "/usr/share/fonts/truetype/msttcorefonts/arialbd.ttf",
+]:
+    if Path(arial_font_path).exists():
+        font_manager.fontManager.addfont(arial_font_path)
+
+plt.rcParams["font.family"] = "Arial"
+
+class1_term_order = [
+    "Cell Cycle, Mitotic",
+    "Mitotic Metaphase And Anaphase",
+    "Mitotic Anaphase",
+    "Cell Cycle",
+    "M Phase",
+]
+
+class3_term_order = [
+    "HDR Thru Homologous Recombination (HRR)",
+    "Homology Directed Repair",
+    "Processing Of DNA Double-Strand Break Ends",
+    "Cellular Responses To Stress",
+    "Interleukin-15 Signaling",
+]
+
+def order_top5_terms(df, term_order):
+    order_map = {term: i for i, term in enumerate(term_order)}
+    # typo로 들어온 term도 같은 위치에 배치
+    if "Mitotic Metaphase And Anaphase" in order_map:
+        order_map["Mitotic Metatphase And Anaphase"] = order_map["Mitotic Metaphase And Anaphase"]
+
+    out = df.copy()
+    out["_term_order"] = out["Term"].map(order_map).fillna(len(term_order))
+    out = out.sort_values(["_term_order", "-log10(FDR)"], ascending=[True, False])
+    return out.drop(columns="_term_order")
+
+def get_top5_xlim(values):
+    max_value = float(values.max())
+    if not np.isfinite(max_value) or max_value <= 0:
+        return 1
+
+    padded = max_value * 1.30
+    step = 0.5 if padded <= 5 else 1
+    return np.ceil(padded / step) * step
+
+def get_top5_tick_step(xlim_max):
+    if xlim_max <= 2:
+        return 0.5
+    if xlim_max <= 5:
+        return 1.0
+    return 2.5
+
+def plot_separate_top5_barplot(df, term_order, title, save_name):
+    plot_df = order_top5_terms(df, term_order)
+    y_pos = np.arange(len(plot_df))
+
+    fig, ax = plt.subplots(figsize=(6, 3.5))
+    ax.barh(
+        y_pos,
+        plot_df["-log10(FDR)"],
+        color=top5_bar_color,
+        height=0.55,
+    )
+
+    ax.set_yticks(y_pos)
+    ax.set_yticklabels(plot_df["Term"], fontsize=11)
+    ax.yaxis.tick_right()
+    ax.tick_params(axis="y", labelleft=False, labelright=True, left=False, right=False, pad=8)
+    for tick_label in ax.get_yticklabels():
+        tick_label.set_horizontalalignment("left")
+
+    ax.invert_yaxis()
+    ax.set_title(title, fontsize=12, fontweight="bold", pad=9)
+    ax.set_xlabel("-log10(FDR)", fontsize=12)
+    ax.set_ylabel("")
+    xlim_max = get_top5_xlim(plot_df["-log10(FDR)"])
+    ax.set_xlim(0, xlim_max)
+    ax.xaxis.set_major_locator(MultipleLocator(get_top5_tick_step(xlim_max)))
+    ax.xaxis.set_major_formatter(FormatStrFormatter("%.1f"))
+    ax.grid(False)
+    ax.grid(axis="x", linestyle="--", alpha=0.45)
+    ax.set_axisbelow(True)
+    sns.despine(ax=ax)
+
+    fig.subplots_adjust(left=0.13, right=0.43, top=0.82, bottom=0.18)
+    fig.savefig(f"{top5_save_dir}/{save_name}", dpi=300, bbox_inches="tight")
+    plt.show()
+
+plot_separate_top5_barplot(
+    top5_up,
+    class1_term_order,
+    "AR Upregulated Class 1 DUT",
+    "AR_upregulated_Class1_DUT_top5_GObarplot.pdf",
+)
+
+plot_separate_top5_barplot(
+    top5_down,
+    class3_term_order,
+    "AR Downregulated Class 3 DUT",
+    "AR_downregulated_Class3_DUT_top5_GObarplot.pdf",
+)
 
 #%%
 ##^^ top 5 그룹별 delta TU boxplot ####
@@ -1141,7 +1270,7 @@ def plot_volcano_grid_internal_legend(datasets, groups, x_col='delta_TU', y_col=
     """
     각 서브플롯 내부에 개별 legend를 표시하는 버전
     """
-    fig, axes = plt.subplots(3, 2, figsize=(11, 13)) #(18, 11) (11,13)
+    fig, axes = plt.subplots(3, 2, figsize=(8, 10)) #(18, 11) (11,13)
     sns.set_style("ticks")
     
     data_keys = ['AR', 'IR']
@@ -1181,7 +1310,7 @@ def plot_volcano_grid_internal_legend(datasets, groups, x_col='delta_TU', y_col=
                 
                 ax.scatter(x=subset[x_col], y=subset['nlog10'], 
                            c=colors[cat], alpha=alphas[cat], 
-                           linewidth=0, s=20,
+                           linewidth=0, s=10,
                            label=label_name)
 
             # 임계선 추가
@@ -1194,7 +1323,7 @@ def plot_volcano_grid_internal_legend(datasets, groups, x_col='delta_TU', y_col=
             ax.legend(loc='upper right', frameon=False, fontsize=11, markerscale=1.2)
 
             # 축 및 제목 설정
-            ax.set_title(f'{d_key} (Class {j+1})', fontsize=14, fontweight='bold')
+            ax.set_title(f'{d_key} (Class {j+1})', fontweight='bold', fontsize=13)
             ax.set_xlim(-0.5, 0.5)
             ax.set_ylim(-0.2, 5.2)
             ax.set_xlabel(r'$\Delta$ TU', fontsize=13)
@@ -1213,7 +1342,7 @@ def plot_volcano_grid_internal_legend(datasets, groups, x_col='delta_TU', y_col=
 # 실행_path는 필요에 따라 지정하세요
 datasets = {'AR': AR_dut, 'IR': IR_dut}
 groups = [group1, group2, group3]
-plot_volcano_grid_internal_legend(datasets, groups, save_path='/home/jiye/jiye/copycomparison/GENCODEquant/SEV_prepost/merged_cov5_analysis/0210figures/AR+IR_Class_volcano.png')#save_path='/home/jiye/jiye/copycomparison/GENCODEquant/SEV_prepost/merged_cov5_analysis/0210figures/40_DUTvolcano.pdf')
+plot_volcano_grid_internal_legend(datasets, groups, save_path='//home/jiye/jiye/copycomparison/GENCODEquant/SEV_prepost/2605figs/AR+IR_Class_volcano.png')
 
 #%%
 ####^^ Class1~3 DUT boxplot #########
@@ -1227,11 +1356,18 @@ from scipy.stats import wilcoxon
 
 sns.set_style("ticks")
 
+# palette = {
+#     "AR_Pre": "#FFEDA0",
+#     "AR_Post": "#FEB24C",
+#     "IR_Pre": "#D9F0D3",
+#     "IR_Post": "#5AAE61"
+# }
+
 palette = {
-    "AR_Pre": "#FFEDA0",
-    "AR_Post": "#FEB24C",
-    "IR_Pre": "#D9F0D3",
-    "IR_Post": "#5AAE61"
+    "AR_Pre": "#FDD49E",
+    "AR_Post": "#F28E2B",
+    "IR_Pre": "#C7E9C0",
+    "IR_Post": "#5AAE61",
 }
 
 def p_to_star(p):
@@ -1359,15 +1495,15 @@ def compute_paired_sample_meanTU(
 
 
 def add_stat_annotation(ax, x1, x2, y, h, text, fontsize=11):
-    ax.plot([x1, x1, x2, x2], [y, y+h, y+h, y], lw=1.2, c="dimgray")
+    ax.plot([x1, x1, x2, x2], [y+h, y+2*h, y+2*h, y+h], lw=1.2, c="black")
     ax.text(
         (x1 + x2) / 2,
-        y + h,
+        y + 2 * h,
         text,
         ha="center",
         va="bottom",
         fontsize=fontsize,
-        color="dimgray"
+        color="black"
     )
 
 
@@ -1400,7 +1536,7 @@ def plot_meanTU_box_grid_by_class(
 
     class_groups = [class1, class2, class3]
 
-    fig, axes = plt.subplots(3, 2, figsize=(11, 13))
+    fig, axes = plt.subplots(3, 2, figsize=(8, 10))
 
     for row_idx, class_tx in enumerate(class_groups):
         # -------- class-specific y-range (shared only between AR/IR in this row) --------
@@ -1526,14 +1662,14 @@ def plot_meanTU_box_grid_by_class(
 
             yr = y_max - y_min
             ymax_panel = np.nanmax(paired_df[["Pre", "Post"]].to_numpy())
-            line_y = ymax_panel + yr * 0.04
-            h = yr * 0.015
+            line_y = ymax_panel + yr * 0.015
+            h = yr * 0.01
             add_stat_annotation(ax, 0, 1, line_y, h, star, fontsize=11)
 
             ax.set_title(f"{label} DUT (Class {row_idx+1})", fontsize=13, fontweight="bold")
-            ax.set_xlabel("Time", fontsize=13)
+            ax.set_xlabel("")
             ax.set_ylabel("Mean TU", fontsize=13)
-            ax.set_ylim(y_min, y_max+0.02)
+            ax.set_ylim(y_min, y_max+0.03)
 
             sns.despine(ax=ax)
 
@@ -1557,7 +1693,7 @@ plot_meanTU_box_grid_by_class(
     fillna=False,
     pre_label="bfD",
     post_label="atD",
-    #save_path="/home/jiye/jiye/copycomparison/GENCODEquant/SEV_prepost/merged_cov5_analysis/0210figures/AR_IR_Class_boxplot.pdf"
+    save_path="/home/jiye/jiye/copycomparison/GENCODEquant/SEV_prepost/2605figs/AR_IR_Class123_DUT_boxplot.pdf"
 )
 #%%
 #####^^ delta TU로 rank sum -> GO check ######################
@@ -1608,7 +1744,7 @@ delta_TU_gene = post_TU_gene.copy()
 delta_TU_gene.index = pre_TU_gene.index 
 delta_TU_gene = post_TU_gene.values - pre_TU_gene.values
 delta_TU_gene = pd.DataFrame(delta_TU_gene, index=post_TU_gene.index, columns=pre_TU_gene.columns)
-delta_TU_gene = delta_TU_gene.dropna(0) #dropna(), fillna(0)
+delta_TU_gene = delta_TU_gene.dropna(axis=0) #dropna(), fillna(0)
 
 
 import gseapy as gp
@@ -1801,7 +1937,7 @@ def make_melted_df(delta_ar_mean, delta_ir_mean):
     return df
 
 def plot_ar_vs_ir_boxplot(melted_df, ylabel, title=None, add_stats=True):
-    plt.figure(figsize=(4, 5))
+    plt.figure(figsize=(2, 3))
     plt.axhline(0, linestyle="--", color="grey", alpha=0.6)
 
     ax = sns.boxplot(
@@ -1829,7 +1965,7 @@ def plot_ar_vs_ir_boxplot(melted_df, ylabel, title=None, add_stats=True):
 
     sns.despine()
     plt.tight_layout()
-    plt.savefig('/home/jiye/jiye/copycomparison/GENCODEquant/SEV_prepost/merged_cov5_analysis/0210figures/'+title+'TUrankshift_boxplot.pdf', dpi=300, bbox_inches='tight')
+    plt.savefig('/home/jiye/jiye/copycomparison/GENCODEquant/SEV_prepost/2605figs/'+title+'TUrankshift_boxplot.pdf', dpi=300, bbox_inches='tight')
     plt.show()
 
 def plot_top_transcript_cutoff(
@@ -1857,7 +1993,7 @@ def plot_top_transcript_cutoff(
 
     cutoff_y = plot_df.iloc[top_n - 1]["deltaRank"]
 
-    plt.figure(figsize=(3.2, 5))
+    plt.figure(figsize=(2, 3))
     ax = plt.gca()
 
     # ⭐ 핵심: 왼쪽으로 shift
@@ -1914,12 +2050,12 @@ def plot_top_transcript_cutoff(
     ax.set_xticks([])
     ax.set_ylabel(ylabel)
 
-    ax.legend(frameon=False, loc="lower right")
+    ax.legend(frameon=True, loc="lower right", fontsize=7.5)
 
     sns.despine(bottom=True)
     plt.tight_layout()
 
-    save_path='/home/jiye/jiye/copycomparison/GENCODEquant/SEV_prepost/merged_cov5_analysis/0210figures/'+title+'rank_scatter.pdf'
+    save_path='/home/jiye/jiye/copycomparison/GENCODEquant/SEV_prepost/2605figs/'+title+'rank_scatter.pdf'
     plt.savefig(save_path, dpi=300, bbox_inches="tight")
     plt.show()
 
@@ -1943,49 +2079,6 @@ def genes_from_top_transcripts(delta_ar_mean, top_n, ascending):
     )
     return genes, top_tx
 
-# def enrichr_and_plot_bar(
-#     genes,
-#     title,
-#     color,
-#     gene_sets=('GO_Biological_Process_2021', 'Reactome_2022'),
-#     fdr_cutoff=0.1,
-#     top_terms=10
-# ):
-#     enr = gp.enrichr(
-#         gene_list=genes,
-#         gene_sets=list(gene_sets),
-#         organism="Human",
-#         outdir=None
-#     )
-#     res = enr.results.copy()
-#     sig = res[res["Adjusted P-value"] < fdr_cutoff].copy()
-#     if sig.empty:
-#         print(f"[{title}] No significant terms at FDR<{fdr_cutoff}.")
-#         return sig
-
-#     sig["nlog10_FDR"] = -np.log10(sig["Adjusted P-value"] + 1e-300)
-#     sig = sig.sort_values("nlog10_FDR", ascending=False)
-
-#     top = sig.head(top_terms).copy()
-#     top["Term"] = top["Term"].astype(str).str.rsplit(" ", n=1).str[0]
-
-#     plt.figure(figsize=(8, 4))
-#     sns.set_style("ticks")
-#     ax = sns.barplot(data=top, x="nlog10_FDR", y="Term", color=color)
-#     ax.set_title("")
-#     ax.set_xlabel("-log10(FDR)")
-#     ax.set_ylabel("")
-#     ax.grid(axis="x", linestyle="--", alpha=0.3)
-#     ax.set_xlim(0, float(top["nlog10_FDR"].max()) * 1.1)  # 너가 원한 xlim
-#     plt.subplots_adjust(left=0.45)   # ← 고정값
-#     ax.set_position([0.45, 0.1, 0.5, 0.8])  # 완전 고정 레이아웃 (더 강력)
-#     sns.despine()
-#     plt.tight_layout()
-#     plt.savefig('/home/jiye/jiye/copycomparison/GENCODEquant/SEV_prepost/merged_cov5_analysis/0210figures/'+title+'GObarplot.pdf', dpi=300, bbox_inches='tight')
-    
-#     plt.show()
-
-#     return sig
 
 def enrichr_and_plot_bar(
     genes,
@@ -2021,7 +2114,7 @@ def enrichr_and_plot_bar(
 
     sns.set_style("whitegrid")
 
-    fig = plt.figure(figsize=(5, 3.4))
+    fig = plt.figure(figsize=(5, 3))
     ax = fig.add_axes([0.10, 0.18, 0.2, 0.72])  
     # [left, bottom, width, height]
     # 이 width를 고정해서 bar 영역 길이를 plot마다 같게 만듦
@@ -2073,11 +2166,11 @@ def enrichr_and_plot_bar(
     # ax.axvline(0, color="0.4", linewidth=0.8)
 
     savepath = (
-        '/home/jiye/jiye/copycomparison/GENCODEquant/figures/' + title + 'GObarplot.pdf'
+        '/home/jiye/jiye/copycomparison/GENCODEquant/SEV_prepost/2605figs/' + title + 'GObarplot.pdf'
     )
 
     # tight_layout, bbox_inches='tight'는 쓰지 않음
-    plt.savefig(savepath, dpi=300)
+    plt.savefig(savepath, dpi=300,bbox_inches="tight")
     plt.show()
 
     return sig
@@ -4104,7 +4197,7 @@ sfgeneexp = newcohort.loc[newcohort.index.isin(target_genes), :]
 #####***##########################################
 clin = pd.read_csv('/home/jiye/jiye/copycomparison/gDUTresearch/FINALDATA/withYNK/112_PARPi_clinicalinfo.txt', sep='\t', index_col=0)
 clin = clin.loc[clin.index.isin(sfgeneexp.columns),:]
-#clin = clin[(clin['line']=='1L') | (clin['BRCAmt']==1)]
+clin = clin[(clin['line']!='1L') & (clin['BRCAmt']==0)]
 clin['group'] = 'i'
 clin.loc[(clin['response']==1)&(clin['recur']==1),'group'] = 'AR'
 clin.loc[(clin['response']==0),'group'] = 'IR'
@@ -4232,7 +4325,7 @@ sns.stripplot(x='group', y='Splicing_Score', data=merged_forfig,
 pairs = [("CR", "AR"),("CR","IR"),("AR","IR")]
 
 # 3. Annotator 설정 및 적용
-annotator = Annotator(ax, pairs, data=merged_forfig, x='group', y='Splicing_Score', order=['CR','IR','AR'])
+annotator = Annotator(ax, pairs, data=merged_forfig, x='group', y='Splicing_Score', order=['CR','AR','IR'])
 
 # test='t-test_ind' (t-검정) 또는 'Mann-Whitney' (비모수 검정) 중 선택
 annotator.configure(test='Mann-Whitney', text_format='full', loc='inside', verbose=2, pvalue_format_string='{:.2f}')
@@ -4255,8 +4348,8 @@ val_tpm["gene"] = val_tpm.index.str.split("-", n=1).str[-1]
 gene_sum = val_tpm.groupby("gene").transform("sum")
 val_tu = val_tpm.iloc[:, :-1].div(gene_sum)
 
-ARdut_forval = AR_dut.loc[(AR_dut['p_value']<0.05) &(AR_dut['delta_TU']>0.05)].index.to_list() ##^^ no abs 
-ARgroup1dut = set(ARdut_forval).intersection(set(class1)) ##^^ here 
+ARdut_forval = AR_dut.loc[(AR_dut['p_value']<0.05) &(AR_dut['delta_TU']<-0.05)].index.to_list() ##^^ no abs 
+ARgroup1dut = set(ARdut_forval).intersection(set(class3)) ##^^ here 
 
 val_exp = val_tpm.loc[val_tpm.index.isin(ARgroup1dut), val_tpm.columns.isin(clin.index)]
 val_dut = val_tu.loc[val_tu.index.isin(ARgroup1dut), val_tu.columns.isin(clin.index)]
@@ -4264,13 +4357,13 @@ val_dut = val_tu.loc[val_tu.index.isin(ARgroup1dut), val_tu.columns.isin(clin.in
 merged_forfig['mean_group1_DUT_TU'] = val_dut.mean(axis=0)
 merged_forfig['mean_group1_DUT_exp'] = val_exp.mean(axis=0)
 
-plt.figure(figsize=(6,6))
+plt.figure(figsize=(4.5,4.5))
 sns.set(style='ticks')
 # 1. Boxplot을 그릴 때 ax 객체를 저장합니다.
 ax = sns.boxplot(x='group', y='mean_group1_DUT_TU', data=merged_forfig, 
-                 order=['CR','IR','AR'], palette={"AR": "#FEB24C", "IR": "#5AAE61", "CR":"#58C1EE"}, showfliers=False)
+                 order=['CR','AR','IR'], palette={"AR": "#FEB24C", "IR": "#5AAE61", "CR":"#58C1EE"}, showfliers=False)
 sns.stripplot(x='group', y='mean_group1_DUT_TU', data=merged_forfig,
-              order=['CR','IR','AR'], 
+              order=['CR','AR','IR'], 
               color='#545454',       # 점 색상
               alpha=0.3,           # 투명도 (0~1)
               jitter=0.1,          # 점들이 겹치지 않게 좌우로 흩뿌림
@@ -4280,7 +4373,7 @@ sns.stripplot(x='group', y='mean_group1_DUT_TU', data=merged_forfig,
 pairs = [("CR", "AR"),("CR","IR"),("AR","IR")]
 
 # 3. Annotator 설정 및 적용
-annotator = Annotator(ax, pairs, data=merged_forfig, x='group', y='mean_group1_DUT_TU', order=['CR','IR','AR'])
+annotator = Annotator(ax, pairs, data=merged_forfig, x='group', y='mean_group1_DUT_TU', order=['CR','AR','IR'])
 
 # test='t-test_ind' (t-검정) 또는 'Mann-Whitney' (비모수 검정) 중 선택
 annotator.configure(test='Mann-Whitney', text_format='full', loc='inside', verbose=2, pvalue_format_string='{:.2f}')
@@ -4288,9 +4381,196 @@ annotator.apply_and_annotate()
 
 sns.despine()
 plt.ylabel('mean TU')
-plt.title('Class1 AR DUT') # 제목 추가 추천
-#plt.savefig('/home/jiye/jiye/copycomparison/GENCODEquant/SEV_pre/111_pre/figures/group1_DUT_TU_CRvsARvsIR.pdf', dpi=300, bbox_inches='tight')
+plt.title('Class3 AR DUT') # 제목 추가 추천
+plt.savefig('/home/jiye/jiye/copycomparison/GENCODEquant/SEV_prepost/2605figs/VAL_BRCAmt_1L_class3_DUT_TU_CRvsARvsIR.pdf', dpi=300, bbox_inches='tight')
 plt.show()
+
+#%%
+###^^^^^^ validation cohort: class1/class3 AR DUT median score survival #############
+def match_validation_transcripts(transcript_list, val_index):
+    val_index = pd.Index(val_index.astype(str))
+    val_index_set = set(val_index)
+    txid_to_val_index = dict(zip(val_index.str.split("-", n=1).str[0], val_index))
+
+    matched = []
+    for tx in transcript_list:
+        tx = str(tx)
+        if tx in val_index_set:
+            matched.append(tx)
+            continue
+
+        tx_id = tx.split("-", 1)[0]
+        if tx_id in txid_to_val_index:
+            matched.append(txid_to_val_index[tx_id])
+
+    return list(dict.fromkeys(matched))
+
+
+def get_ar_directional_class_dut(class_list, direction="up", p_cutoff=0.05, delta_cutoff=0.05):
+    delta_tu = pd.to_numeric(AR_dut["delta_TU"], errors="coerce")
+    p_values = pd.to_numeric(AR_dut["p_value"], errors="coerce")
+
+    if direction == "up":
+        mask = (p_values < p_cutoff) & (delta_tu > delta_cutoff)
+    elif direction == "down":
+        mask = (p_values < p_cutoff) & (delta_tu < -delta_cutoff)
+    else:
+        raise ValueError("direction must be either 'up' or 'down'")
+
+    return sorted(set(class_list).intersection(set(AR_dut.loc[mask].index)))
+
+
+def format_survival_pvalue(p_value):
+    if pd.isna(p_value):
+        return "NA"
+    return f"{p_value:.2e}" if p_value < 0.001 else f"{p_value:.3f}"
+
+
+def plot_median_dut_score_survival(
+    val_tu_df,
+    clin_df,
+    dut_list,
+    title,
+    save_path,
+    figsize=(4, 3.5),
+):
+    matched_dut = match_validation_transcripts(dut_list, val_tu_df.index)
+    if len(matched_dut) == 0:
+        print(f"{title}: no matched DUT in validation TU matrix")
+        return None
+
+    common_samples = clin_df.index.intersection(val_tu_df.columns)
+    plot_df = clin_df.loc[common_samples, ["PFS", "recur", "group"]].copy()
+    plot_df = plot_df.loc[plot_df["group"].isin(["CR", "AR", "IR"])]
+
+    dut_score = (
+        val_tu_df.loc[matched_dut, plot_df.index]
+        .apply(pd.to_numeric, errors="coerce")
+        .mean(axis=0)
+        .rename("mean_DUT_TU")
+    )
+    plot_df = plot_df.join(dut_score)
+    plot_df["PFS"] = pd.to_numeric(plot_df["PFS"], errors="coerce")
+    plot_df["recur"] = pd.to_numeric(plot_df["recur"], errors="coerce")
+    plot_df = plot_df.dropna(subset=["PFS", "recur", "mean_DUT_TU"])
+
+    if plot_df.empty:
+        print(f"{title}: no valid samples after filtering")
+        return None
+
+    median_score = plot_df["mean_DUT_TU"].median()
+    plot_df["DUT_score_group"] = np.where(
+        plot_df["mean_DUT_TU"] >= median_score,
+        "High DUT score",
+        "Low DUT score"
+    )
+    plot_df["High_vs_Low"] = plot_df["DUT_score_group"].eq("High DUT score").astype(int)
+
+    if plot_df["DUT_score_group"].nunique() < 2:
+        print(f"{title}: high and low DUT score groups are both required")
+        return None
+
+    cox_df = plot_df[["PFS", "recur", "High_vs_Low"]].copy()
+    cph = CoxPHFitter()
+    cph.fit(cox_df, duration_col="PFS", event_col="recur")
+
+    hr = cph.summary.loc["High_vs_Low", "exp(coef)"]
+    ci_low = cph.summary.loc["High_vs_Low", "exp(coef) lower 95%"]
+    ci_high = cph.summary.loc["High_vs_Low", "exp(coef) upper 95%"]
+    cox_p = cph.summary.loc["High_vs_Low", "p"]
+
+    high_df = plot_df.loc[plot_df["DUT_score_group"] == "High DUT score"]
+    low_df = plot_df.loc[plot_df["DUT_score_group"] == "Low DUT score"]
+    logrank_result = logrank_test(
+        high_df["PFS"],
+        low_df["PFS"],
+        event_observed_A=high_df["recur"],
+        event_observed_B=low_df["recur"],
+    )
+
+    fig, ax = plt.subplots(figsize=figsize)
+    kmf = KaplanMeierFitter()
+    palette = {"High DUT score": "#EF463A", "Low DUT score": "#18A0DA"}
+    for group_name in ["High DUT score", "Low DUT score"]:
+        mask = plot_df["DUT_score_group"].eq(group_name)
+        kmf.fit(
+            plot_df.loc[mask, "PFS"],
+            event_observed=plot_df.loc[mask, "recur"],
+            label=group_name
+        )
+        kmf.plot_survival_function(ax=ax, color=palette[group_name], ci_show=False)
+
+    ax.text(
+        0.6,
+        0.52,
+        f"HR = {hr:.2f} ({ci_low:.2f}-{ci_high:.2f})\n"
+        f"Cox p = {format_survival_pvalue(cox_p)}\n"
+        f"log-rank p = {format_survival_pvalue(logrank_result.p_value)}",
+        transform=ax.transAxes,
+        ha="left",
+        va="bottom",
+        fontsize=10,
+    )
+    ax.set_title(title)
+    ax.set_xlabel("PFS")
+    ax.set_ylabel("Survival probability")
+    ax.set_ylim(0, 1.05)
+    ax.grid(alpha=0.2)
+    ax.legend(frameon=False, loc="upper right")
+    sns.despine(ax=ax)
+    plt.tight_layout()
+    fig.savefig(save_path, dpi=300, bbox_inches="tight")
+    plt.show()
+    plt.close(fig)
+
+    print(
+        f"{title}: discovery DUT n={len(dut_list)}, matched DUT n={len(matched_dut)}, "
+        f"median={median_score:.6g}, "
+        f"High n={len(high_df)}, Low n={len(low_df)}, saved={save_path}"
+    )
+    return cph.summary
+
+
+val_class1_up_dut = get_ar_directional_class_dut(class1, direction="up")
+val_class3_down_dut = get_ar_directional_class_dut(class3, direction="down")
+
+class1_up_cox_summary = plot_median_dut_score_survival(
+    val_tu,
+    clin,
+    val_class1_up_dut,
+    "Class1 AR upregulated DUT",
+    "/home/jiye/jiye/copycomparison/GENCODEquant/SEV_prepost/2605figs/VAL_BRCAwt_non1L_upregulated_class1_DUT_median_score_survival.pdf",
+    figsize=(5, 4),
+)
+
+class3_down_cox_summary = plot_median_dut_score_survival(
+    val_tu,
+    clin,
+    val_class3_down_dut,
+    "Class3 AR downregulated DUT",
+    "/home/jiye/jiye/copycomparison/GENCODEquant/SEV_prepost/2605figs/VAL_BRCAwt_non1L_downregulated_class3_DUT_median_score_survival.pdf",
+    figsize=(5, 4),
+)
+
+clin_arir = clin.loc[clin["group"].isin(["AR", "IR"])].copy()
+
+class1_up_arir_cox_summary = plot_median_dut_score_survival(
+    val_tu,
+    clin_arir,
+    val_class1_up_dut,
+    "Class1 AR upregulated DUT (AR/IR only)",
+    "/home/jiye/jiye/copycomparison/GENCODEquant/SEV_prepost/2605figs/VAL_BRCAwt_non1L_ARIR_only_upregulated_class1_DUT_median_score_survival.pdf",
+    figsize=(5, 4),
+)
+
+class3_down_arir_cox_summary = plot_median_dut_score_survival(
+    val_tu,
+    clin_arir,
+    val_class3_down_dut,
+    "Class3 AR downregulated DUT (AR/IR only)",
+    "/home/jiye/jiye/copycomparison/GENCODEquant/SEV_prepost/2605figs/VAL_BRCAwt_non1L_ARIR_only_downregulated_class3_DUT_median_score_survival.pdf",
+    figsize=(5, 4),
+)
 
 #%%
 ###^^^^^^ validation cohort에서 별 DUT로 확인 #############33

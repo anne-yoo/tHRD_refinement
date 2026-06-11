@@ -21,7 +21,22 @@ from statannotations.Annotator import Annotator
 from statannot import add_stat_annotation
 rcParams['pdf.fonttype'] = 42  
 rcParams['ps.fonttype'] = 42
-rcParams['font.family'] = 'Helvetica'
+from pathlib import Path
+from matplotlib import font_manager
+
+rcParams['pdf.fonttype'] = 42  
+rcParams['ps.fonttype'] = 42
+for arial_font_path in [
+    "/usr/share/fonts/truetype/msttcorefonts/Arial.ttf",
+    "/usr/share/fonts/truetype/msttcorefonts/arial.ttf",
+    "/usr/share/fonts/truetype/msttcorefonts/Arial_Bold.ttf",
+    "/usr/share/fonts/truetype/msttcorefonts/arialbd.ttf",
+]:
+    if Path(arial_font_path).exists():
+        font_manager.fontManager.addfont(arial_font_path)
+
+plt.rcParams["font.family"] = "Arial"
+rcParams['font.family'] = 'Arial'
 
 plt.rcParams.update({
 'axes.titlesize': 13,     # 제목 글꼴 크기
@@ -159,9 +174,23 @@ import matplotlib.pyplot as plt
 import numpy as np
 from statannotations.Annotator import Annotator
 
+ARIR_GROUP_ORDER = ["AR_pre", "IR_pre", "IR_post", "AR_post"]
+ARIR_PALETTE = {
+    "AR_pre": "#FDD49E",
+    "AR_post": "#F28E2B",
+    "IR_pre": "#C7E9C0",
+    "IR_post": "#5AAE61",
+}
+
+
 def plot_responsive_dut_boxplot_final(
     pre_TU_gene, post_TU_gene, ar_dut_list, ir_dut_list, sampleinfo,
-    response_col="response", ar_value=1, ir_value=0, title="Class1 + AR/IR DUTs"
+    response_col="response", ar_value=1, ir_value=0,
+    title="Class + AR/IR DUTs",
+    order=None,
+    palette=None,
+    save_path=None,
+    show=True,
 ):
     # 1. 샘플 및 유전자 준비
     ar_samples = sampleinfo[sampleinfo[response_col] == ar_value].index.intersection(pre_TU_gene.columns)
@@ -179,12 +208,12 @@ def plot_responsive_dut_boxplot_final(
     ]).dropna().reset_index()
 
     # 2. 시각화
-    order = ["AR_pre", "AR_post", "IR_pre", "IR_post"]
-    custom_palette = { "AR_pre": "#FFEDA0","AR_post": "#FEB24C","IR_pre": "#D9F0D3","IR_post": "#5AAE61"}
-    #{'AR_pre': '#F1B08F', 'AR_post': '#EE7824', 'IR_pre': '#B2D085', 'IR_post': '#588513'}
-    #{ "AR_Pre": "#FFEDA0","AR_Post": "#FEB24C","IR_Pre": "#D9F0D3","IR_Post": "#5AAE61"}
+    order = order or ARIR_GROUP_ORDER
+    custom_palette = ARIR_PALETTE.copy()
+    if palette is not None:
+        custom_palette.update(palette)
 
-    fig, ax = plt.subplots(figsize=(6, 5))
+    fig, ax = plt.subplots(figsize=(5.5, 4.5))
     sns.boxplot(data=df_long, x='group', y='TU', order=order, palette=custom_palette, 
                 showfliers=False, ax=ax, width=0.6, boxprops=dict(alpha=0.8))
     
@@ -196,12 +225,147 @@ def plot_responsive_dut_boxplot_final(
     annotator.configure(test='Mann-Whitney', text_format='simple', loc='inside')
     annotator.apply_and_annotate()
 
-    #ax.set_title(title, pad=20, fontweight='bold')
+    if title:
+        ax.set_title(title, pad=20, fontweight='bold')
     ax.set_ylabel("Mean TU")
     ax.grid(axis='y', linestyle='--', alpha=0.5)
     sns.despine()
     plt.tight_layout()
+    if save_path is not None:
+        Path(save_path).parent.mkdir(parents=True, exist_ok=True)
+        fig.savefig(save_path, bbox_inches='tight', dpi=300)
+    if show:
+        plt.show()
     return df_long, fig, ax
+
+
+def plot_dut_union_mean_tu_ridge(
+    pre_TU_gene,
+    post_TU_gene,
+    ar_dut_list,
+    ir_dut_list,
+    sampleinfo,
+    response_col="response",
+    ar_value=1,
+    ir_value=0,
+    order=None,
+    palette=None,
+    xlabel="Mean TU",
+    save_path=None,
+    figsize=(4.5, 3),
+    bw_method=0.35,
+    density_height=0.4,
+    show=True,
+):
+    from scipy.stats import gaussian_kde
+
+    order = order or ARIR_GROUP_ORDER
+    palette = _get_arir_palette(palette)
+
+    ar_samples = sampleinfo[sampleinfo[response_col] == ar_value].index.intersection(pre_TU_gene.columns)
+    ir_samples = sampleinfo[sampleinfo[response_col] == ir_value].index.intersection(pre_TU_gene.columns)
+
+    tx_union = sorted(
+        (set(ar_dut_list) | set(ir_dut_list))
+        & set(pre_TU_gene.index)
+        & set(post_TU_gene.index)
+    )
+    if len(tx_union) == 0:
+        raise ValueError("No AR/IR DUT union features available for ridge plot.")
+
+    rows = []
+    group_values = {
+        "AR_pre": pre_TU_gene.loc[tx_union, ar_samples].mean(axis=0),
+        "AR_post": post_TU_gene.loc[tx_union, ar_samples].mean(axis=0),
+        "IR_pre": pre_TU_gene.loc[tx_union, ir_samples].mean(axis=0),
+        "IR_post": post_TU_gene.loc[tx_union, ir_samples].mean(axis=0),
+    }
+    for group, values in group_values.items():
+        for sample, value in values.dropna().items():
+            rows.append((sample, group, float(value)))
+
+    ridge_df = pd.DataFrame(rows, columns=["sample", "group", "Mean TU"])
+    if ridge_df.empty:
+        raise ValueError("No non-NA mean TU values available for ridge plot.")
+
+    all_values = ridge_df["Mean TU"].astype(float).values
+    xmin = max(0.0, float(np.nanmin(all_values)))
+    xmax = float(np.nanmax(all_values))
+    pad = max((xmax - xmin) * 0.12, 0.02)
+    xmin = max(0.0, xmin - pad)
+    xmax = min(1.0, xmax + pad) if xmax <= 1.0 else xmax + pad
+    if np.isclose(xmin, xmax):
+        xmin = max(0.0, xmin - 0.05)
+        xmax = min(1.0, xmax + 0.05)
+    xgrid = np.linspace(xmin, xmax, 400)
+
+    fig, axes = plt.subplots(
+        len(order),
+        1,
+        figsize=figsize,
+        sharex=True,
+        gridspec_kw={"hspace": 0.00},
+    )
+    if len(order) == 1:
+        axes = [axes]
+
+    for ax, group in zip(axes, order):
+        vals = ridge_df.loc[ridge_df["group"] == group, "Mean TU"].astype(float).values
+        color = palette[group]
+
+        if len(vals) >= 2 and not np.isclose(np.std(vals), 0):
+            density = gaussian_kde(vals, bw_method=bw_method)(xgrid)
+        else:
+            center = vals[0] if len(vals) else np.nanmean(all_values)
+            sigma = max((xmax - xmin) / 45, 1e-3)
+            density = np.exp(-0.5 * ((xgrid - center) / sigma) ** 2) / (sigma * np.sqrt(2 * np.pi))
+
+        if density.max() > 0:
+            density = density / density.max() * density_height
+        ymax = density_height * 1.08
+        ax.set_facecolor("white")
+        ax.set_frame_on(True)
+        ax.fill_between(xgrid, 0, density, color=color, alpha=0.82, linewidth=0)
+        ax.plot(xgrid, density, color=color, linewidth=1.2)
+        ax.axhline(0, color="0.3", linewidth=0.8)
+        ax.text(
+            0.02,
+            0.70,
+            group,
+            transform=ax.transAxes,
+            ha="left",
+            va="center",
+            fontsize=11,
+        )
+        ax.set_ylim(0, ymax)
+        ax.set_xlim(xmin, xmax)
+        ax.set_yticks([0.0, 0.2, 0.4])
+        ax.set_yticklabels(["0.0", "0.2", "0.4"])
+        ax.set_axisbelow(True)
+        ax.grid(False)
+        ax.grid(axis="x", linestyle="--", linewidth=0.9, color="0.55", alpha=0.65)
+        for side in ["left", "right", "top", "bottom"]:
+            ax.spines[side].set_visible(True)
+            ax.spines[side].set_color("0.25")
+            ax.spines[side].set_linewidth(0.9)
+        ax.tick_params(axis="y", labelsize=7, length=3, pad=1)
+        if ax is not axes[-1]:
+            ax.tick_params(axis="x", bottom=False, labelbottom=False)
+        else:
+            ax.tick_params(axis="x", labelsize=9)
+
+    axes[-1].set_xlabel(xlabel, fontsize=11, labelpad=3)
+    fig.text(0.035, 0.5, "Density", rotation=90, va="center", ha="center", fontsize=11)
+    fig.subplots_adjust(left=0.11, right=0.98, bottom=0.14, top=0.98, hspace=0.00)
+
+    if save_path is not None:
+        Path(save_path).parent.mkdir(parents=True, exist_ok=True)
+        fig.savefig(save_path, bbox_inches="tight", dpi=300)
+    if show:
+        plt.show()
+
+    return ridge_df, fig, axes
+
 
 def plot_all_class1_boxplot_final(
     pre_TU_gene, post_TU_gene, all_class1_list, sampleinfo,
@@ -218,10 +382,10 @@ def plot_all_class1_boxplot_final(
         pd.DataFrame({'TU': post_TU_gene.loc[tx_all, ir_samples].mean(), 'group': 'IR_post'})
     ]).dropna().reset_index()
 
-    order = ["AR_pre", "AR_post", "IR_pre", "IR_post"]
-    custom_palette = { "AR_pre": "#FFEDA0","AR_post": "#FEB24C","IR_pre": "#D9F0D3","IR_post": "#5AAE61"}
+    order = ARIR_GROUP_ORDER
+    custom_palette = ARIR_PALETTE.copy()
 
-    fig, ax = plt.subplots(figsize=(6, 5))
+    fig, ax = plt.subplots(figsize=(5.5, 4.5))
     sns.boxplot(data=df_long, x='group', y='TU', order=order, palette=custom_palette, 
                 showfliers=False, ax=ax, width=0.6, boxprops=dict(alpha=0.8))
 
@@ -250,15 +414,6 @@ ar_tx_class1 = list(set(ARdutlist) & set(class1))
 ir_tx_class1 = list(set(IRdutlist) & set(class1))
 ar_tx_class3 = list(set(ARdutlist) & set(class3))
 ir_tx_class3 = list(set(IRdutlist) & set(class3))
-
-# --- 실행 부분 ---
-# (AR/IR dutlist 및 class1 준비 코드는 그대로 유지)
-df_long_dut, fig_dut, ax_dut = plot_responsive_dut_boxplot_final(pre_TU_gene, post_TU_gene, ar_tx_class1, ir_tx_class1, sampleinfo)
-plt.savefig("/home/jiye/jiye/copycomparison/GENCODEquant/figures/class1_ARIRdutunion_boxplot.pdf", bbox_inches='tight', dpi=300)
-plt.show()
-
-df_long_all, fig_all, ax_all = plot_all_class1_boxplot_final(pre_TU_gene, post_TU_gene, class1, sampleinfo)
-plt.show()
 
 #%%
 import numpy as np
@@ -316,6 +471,68 @@ def _add_cov_ellipse(ax, pts2d, nsig=1.0, face_alpha=0.08, edge_lw=2.5, zorder=5
     return e
 
 
+def _get_arir_palette(palette=None):
+    default_palette = ARIR_PALETTE.copy()
+    if palette is not None:
+        for key, color in palette.items():
+            default_palette[key] = color
+            if isinstance(key, str):
+                default_palette[key.replace(" ", "_")] = color
+    return default_palette
+
+
+def _draw_ir_projection_panel(
+    ax,
+    ar_samples,
+    s_pre_ar,
+    s_post_ar,
+    frac_pos,
+    p_delta,
+    palette=None,
+    line_color="0.70",
+):
+    palette = _get_arir_palette(palette)
+
+    ax.scatter(
+        np.zeros(len(ar_samples)),
+        s_pre_ar.values,
+        color=palette["AR_pre"],
+        edgecolor="none",
+        label="AR_pre",
+        zorder=3,
+    )
+    ax.scatter(
+        np.ones(len(ar_samples)),
+        s_post_ar.values,
+        color=palette["AR_post"],
+        edgecolor="none",
+        label="AR_post",
+        zorder=3,
+    )
+    for s in ar_samples:
+        ax.plot(
+            [0, 1],
+            [s_pre_ar.loc[s], s_post_ar.loc[s]],
+            color=line_color,
+            alpha=0.35,
+            linewidth=1,
+            zorder=1,
+        )
+
+    ax.set_xticks([0, 1])
+    ax.set_xticklabels(["AR_pre", "AR_post"])
+    ax.set_ylabel("IR-axis score")
+    ax.set_title("Projection to IR direction")
+    ax.text(
+        0.02, 0.98,
+        f"Δ>0 fraction={frac_pos:.2f}\nWilcoxon Δ>0 p={p_delta:.2e}",
+        transform=ax.transAxes, ha="left", va="top",
+        fontsize=10, bbox=dict(boxstyle="round", alpha=0.15)
+    )
+    ax.grid(alpha=0.2)
+    return ax
+
+
 def plot_ir_axis_main_figure(
     pre_TU,
     post_TU,
@@ -331,7 +548,11 @@ def plot_ir_axis_main_figure(
     drop_nan_features=True,   # 추천 True
     ellipse_nsig=1.0,         # 1.0이 "cluster 느낌" 잘 남
     ellipse_use_all_ir=True,  # True면 IR_pre+IR_post로 ellipse
-    title="Class1 ∩ (AR/IR DUT union): shift along IR axis"
+    title="Class ∩ (AR/IR DUT union): shift along IR axis",
+    palette=None,
+    save_path=None,
+    projection_save_path=None,
+    projection_figsize=(3.5, 4.5),
 ):
     # ---------------------------------------------------------
     # 1) Feature set = Class1 ∩ (ARdut ∪ IRdut)
@@ -416,16 +637,17 @@ def plot_ir_axis_main_figure(
     # ---------------------------------------------------------
     # 7) Plot (two panels)
     # ---------------------------------------------------------
-    fig, axes = plt.subplots(1, 2, figsize=(7, 5))
+    plot_palette = _get_arir_palette(palette)
+    fig, axes = plt.subplots(1, 2, figsize=(7, 4.5))
 
     # --- Panel A: PCA + ellipse + arrow + AR flow
     ax = axes[0]
 
     # Points
-    ax.scatter(coord_pre.loc[ir_samples, "PC1"], coord_pre.loc[ir_samples, "PC2"], alpha=0.9, label="IR_pre")
-    ax.scatter(coord_pre.loc[ar_samples, "PC1"], coord_pre.loc[ar_samples, "PC2"], alpha=0.9, label="AR_pre")
-    ax.scatter(coord_post.loc[ar_samples, "PC1"], coord_post.loc[ar_samples, "PC2"], alpha=0.9, label="AR_post")
-    ax.scatter(coord_post.loc[ir_samples, "PC1"], coord_post.loc[ir_samples, "PC2"], alpha=0.6, label="IR_post")
+    ax.scatter(coord_pre.loc[ir_samples, "PC1"], coord_pre.loc[ir_samples, "PC2"], alpha=0.9, label="IR_pre", color=plot_palette["IR_pre"])
+    ax.scatter(coord_pre.loc[ar_samples, "PC1"], coord_pre.loc[ar_samples, "PC2"], alpha=0.9, label="AR_pre", color=plot_palette["AR_pre"])
+    ax.scatter(coord_post.loc[ar_samples, "PC1"], coord_post.loc[ar_samples, "PC2"], alpha=0.9, label="AR_post", color=plot_palette["AR_post"])
+    ax.scatter(coord_post.loc[ir_samples, "PC1"], coord_post.loc[ir_samples, "PC2"], alpha=0.6, label="IR_post", color=plot_palette["IR_post"])
 
     # AR pre->post lines
     for s in ar_samples:
@@ -476,26 +698,38 @@ def plot_ir_axis_main_figure(
     s_pre_ar = score_pre.loc[ar_samples]
     s_post_ar = score_post.loc[ar_samples]
 
-    ax.scatter(np.zeros(len(ar_samples)), s_pre_ar.values)
-    ax.scatter(np.ones(len(ar_samples)), s_post_ar.values)
-    for s in ar_samples:
-        ax.plot([0, 1], [s_pre_ar.loc[s], s_post_ar.loc[s]], alpha=0.35, linewidth=1)
-
-    ax.set_xticks([0, 1])
-    ax.set_xticklabels(["AR_pre", "AR_post"])
-    ax.set_ylabel("IR-axis score")
-    ax.set_title("Projection to IR direction")
-
-    ax.text(
-        0.02, 0.98,
-        f"Δ>0 fraction={frac_pos:.2f}\nWilcoxon Δ>0 p={p_delta:.2e}",
-        transform=ax.transAxes, ha="left", va="top",
-        fontsize=10, bbox=dict(boxstyle="round", alpha=0.15)
+    _draw_ir_projection_panel(
+        ax,
+        ar_samples,
+        s_pre_ar,
+        s_post_ar,
+        frac_pos,
+        p_delta,
+        palette=palette,
     )
-    ax.grid(alpha=0.2)
+
+    projection_fig = None
+    if projection_save_path is not None:
+        projection_fig, projection_ax = plt.subplots(figsize=projection_figsize)
+        _draw_ir_projection_panel(
+            projection_ax,
+            ar_samples,
+            s_pre_ar,
+            s_post_ar,
+            frac_pos,
+            p_delta,
+            palette=palette,
+        )
+        projection_fig.tight_layout()
+        Path(projection_save_path).parent.mkdir(parents=True, exist_ok=True)
+        projection_fig.savefig(projection_save_path, bbox_inches="tight", dpi=300)
+        plt.close(projection_fig)
 
     fig.suptitle(title, y=1.02)
     plt.tight_layout()
+    if save_path is not None:
+        Path(save_path).parent.mkdir(parents=True, exist_ok=True)
+        fig.savefig(save_path, bbox_inches="tight", dpi=300)
     plt.show()
 
     out = {
@@ -508,7 +742,10 @@ def plot_ir_axis_main_figure(
         "p_delta": float(p_delta),
         "frac_pos": frac_pos,
         "n_features": n_features,
-        "v": v
+        "v": v,
+        "save_path": save_path,
+        "projection_fig": projection_fig,
+        "projection_save_path": projection_save_path,
     }
     return out
 
@@ -546,7 +783,10 @@ def plot_unsupervised_clusters_on_pca(
     k=3,
     title="Unsupervised clusters on PCA (k=2)",
     draw_cluster_ellipses=True,
-    ellipse_nsig=1.3
+    ellipse_nsig=1.3,
+    palette=None,
+    save_path=None,
+    show=True,
 ):
     """
     coord_pre/coord_post: DataFrames with columns ["PC1","PC2"], index=samples
@@ -612,10 +852,9 @@ def plot_unsupervised_clusters_on_pca(
                         (ar_post_cluster.loc[common_ar] == ir_like_cluster)).mean()
 
     # ---- plot
-    fig, ax = plt.subplots(figsize=(6, 5))
+    fig, ax = plt.subplots(figsize=(5.5, 4.5))
 
-    palette = { "AR_pre": "#FFEDA0","AR_post": "#FEB24C","IR_pre": "#D9F0D3","IR_post": "#5AAE61"}
-
+    palette = _get_arir_palette(palette)
     # marker shapes by cluster (k=2)
     markers = {0: "o", 1: "s", 2: "^", 3: "D"}
 
@@ -654,7 +893,8 @@ def plot_unsupervised_clusters_on_pca(
         x1, y1 = post_xy.loc[s]
         ax.plot([x0, x1], [y0, y1], color="grey", alpha=0.25, linewidth=1, zorder=2)
 
-    #ax.set_title(title)
+    if title:
+        ax.set_title(title)
     ax.set_xlabel("PC1")
     ax.set_ylabel("PC2")
     ax.grid(alpha=0.2)
@@ -688,67 +928,54 @@ def plot_unsupervised_clusters_on_pca(
 
     plt.tight_layout()
     sns.despine()
-    plt.savefig("/home/jiye/jiye/copycomparison/GENCODEquant/figures/class1_pca_kmeans_clusters.pdf", bbox_inches='tight', dpi=300)
-    plt.show()
+    if save_path is not None:
+        Path(save_path).parent.mkdir(parents=True, exist_ok=True)
+        fig.savefig(save_path, bbox_inches='tight', dpi=300)
+    if show:
+        plt.show()
 
     return df, comp, ir_like_cluster, moved_to_ir_like
 
 
-out = plot_ir_axis_main_figure(
-    pre_TU=pre_TU_gene,
-    post_TU=post_TU_gene,
-    sampleinfo=sampleinfo,
-    class1_list=class1,
-    ARdutlist=ARdutlist,
-    IRdutlist=IRdutlist,
-    drop_nan_features=True,   # main figure 추천
-    ellipse_nsig=2.0,         # 1.0이면 cluster 느낌 확
-    ellipse_use_all_ir=True,  # IR_pre+post로 ellipse
-)
-
-
-df_pts, comp, ir_like_cluster, moved_frac = plot_unsupervised_clusters_on_pca(
-    coord_pre=out["coord_pre"],
-    coord_post=out["coord_post"],
-    ar_samples=sampleinfo[sampleinfo["response"]==1].index,
-    ir_samples=sampleinfo[sampleinfo["response"]==0].index,
-    k=3,
-    draw_cluster_ellipses=True,
-    ellipse_nsig=1.2,
-    title="PCA + k-means clusters (k=3)"
-)
-
-print(comp)
-print("IR-like cluster:", ir_like_cluster, "AR moved fraction:", moved_frac)
-# %%
-cluster_counts = comp.copy()
-
-cluster_counts.index.name = "cluster"
-cluster_counts["total"] = cluster_counts.sum(axis=1)
-
 sns.set_style("ticks")
 
-def plot_cluster_composition_stacked_vertical(cluster_counts, save_path=None):
+def plot_cluster_composition_stacked_vertical(
+    cluster_counts,
+    save_path=None,
+    cluster_order=None,
+    palette=None,
+    title=None,
+    figsize=(3, 4.5),
+    show=True,
+):
     df = cluster_counts.copy()
 
     cols = ["AR_pre", "AR_post", "IR_pre", "IR_post"]
-    prop = df[cols].div(df[cols].sum(axis=1), axis=0)
-    order = [0, 2, 1]
-    prop = prop.reindex(order)
-    df = df.reindex(order)
+    if cluster_order is not None:
+        order = [c for c in cluster_order if c in df.index]
+        order += [c for c in df.index if c not in order]
+        df = df.loc[order]
+    else:
+        df = df.sort_index()
 
-    colors = {
-        "AR_pre": "#FFEDA0",
-        "AR_post": "#FEB24C",
-        "IR_pre": "#D9F0D3",
-        "IR_post": "#5AAE61"
-    }
+    counts = df[cols].fillna(0)
+    totals = counts.sum(axis=1).replace(0, np.nan)
+    prop = counts.div(totals, axis=0).fillna(0)
 
-    fig, ax = plt.subplots(figsize=(3.5, 6))
+    colors = _get_arir_palette(palette)
+
+    fig, ax = plt.subplots(figsize=figsize)
     bottom = np.zeros(len(prop))
 
     x = np.arange(len(prop))
-    xlabels = [f"C{idx}" if str(idx).isdigit() else str(idx) for idx in prop.index]
+    def _cluster_label(idx):
+        if isinstance(idx, (int, np.integer)):
+            return f"C{int(idx)}"
+        if isinstance(idx, (float, np.floating)) and float(idx).is_integer():
+            return f"C{int(idx)}"
+        return str(idx)
+
+    xlabels = [_cluster_label(idx) for idx in prop.index]
 
     for col in cols:
         ax.bar(
@@ -762,14 +989,15 @@ def plot_cluster_composition_stacked_vertical(cluster_counts, save_path=None):
         )
         bottom += prop[col].values
 
-    for i, idx in enumerate(df.index):
+    for i, idx in enumerate(prop.index):
         cum = 0
         for col in cols:
-            val = df.loc[idx, col]
+            val = counts.loc[idx, col]
             frac = prop.loc[idx, col]
-            if frac > 0.08:
+            if frac > 0.08 and val > 0:
+                val_label = str(int(val)) if float(val).is_integer() else f"{val:g}"
                 ax.text(
-                    i, cum + frac / 2, str(val),
+                    i, cum + frac / 2, val_label,
                     ha="center", va="center",
                     fontsize=8, color="black"
                 )
@@ -780,6 +1008,8 @@ def plot_cluster_composition_stacked_vertical(cluster_counts, save_path=None):
     ax.set_ylim(0, 1)
     ax.set_ylabel("Proportion")
     ax.set_xlabel("Cluster")
+    if title:
+        ax.set_title(title)
 
     ax.legend(
         frameon=False,
@@ -791,11 +1021,233 @@ def plot_cluster_composition_stacked_vertical(cluster_counts, save_path=None):
     sns.despine()
     plt.tight_layout()
 
-    if save_path:
-        plt.savefig(save_path, dpi=300, bbox_inches="tight")
-    plt.show()
-    
-plot_cluster_composition_stacked_vertical(cluster_counts,save_path="/home/jiye/jiye/copycomparison/GENCODEquant/figures/class1_pca_kmeans_cluster_composition.pdf" ) #
+    if save_path is not None:
+        Path(save_path).parent.mkdir(parents=True, exist_ok=True)
+        fig.savefig(save_path, dpi=300, bbox_inches="tight")
+    if show:
+        plt.show()
+    return fig, ax, prop
+
+
+FIGURE_OUTPUT_DIR = Path("/home/jiye/jiye/copycomparison/GENCODEquant/SEV_prepost/2605figs")
+
+CLASS_DUT_FIGURE_CONFIGS = [
+    {
+        "key": "class1",
+        "label": "Class 1",
+        "class_list": class1,
+        "k": 3,
+        "ir_dut_list": [],
+        "feature_label": "AR PRT",
+        "plot_title": "AR PRT",
+        "ir_axis_title": "AR PRT",
+        "filename_prefix": "class1_AR_PRT",
+        "boxplot_tag": None,
+        "cluster_order": [2, 0, 1],
+    },
+    {
+        "key": "class3",
+        "label": "Class 3",
+        "class_list": class3,
+        "k": 2,
+        "ir_dut_list": [],
+        "feature_label": "AR PST",
+        "plot_title": "AR PST",
+        "ir_axis_title": "AR PST",
+        "filename_prefix": "class3_AR_PST",
+        "boxplot_tag": None,
+    },
+]
+
+
+def run_class_dut_union_figure_set(
+    configs,
+    pre_TU,
+    post_TU,
+    sampleinfo,
+    ARdutlist,
+    IRdutlist,
+    output_dir=FIGURE_OUTPUT_DIR,
+    default_feature_label="AR/IR DUT union",
+):
+    output_dir = Path(output_dir)
+    results = {}
+
+    ar_samples_fig = sampleinfo[sampleinfo["response"] == 1].index
+    ir_samples_fig = sampleinfo[sampleinfo["response"] == 0].index
+
+    for cfg in configs:
+        key = cfg["key"]
+        label = cfg["label"]
+        class_list = cfg["class_list"]
+        k = cfg["k"]
+        cfg_output_dir = Path(cfg.get("output_dir", output_dir))
+        cfg_ARDUTlist = cfg.get("ar_dut_list", ARdutlist)
+        cfg_IRDUTlist = cfg.get("ir_dut_list", IRdutlist)
+        feature_label = cfg.get("feature_label", default_feature_label)
+        plot_title = cfg.get("plot_title", f"{label}: {feature_label}")
+        ir_axis_title = cfg.get("ir_axis_title", f"{label} ∩ ({feature_label}): shift along IR axis")
+        filename_prefix = cfg.get("filename_prefix", key)
+        boxplot_tag = cfg.get("boxplot_tag", "ARIRdutunion")
+        boxplot_stem = f"{filename_prefix}_{boxplot_tag}" if boxplot_tag else filename_prefix
+
+        ar_class_dut = sorted(set(cfg_ARDUTlist) & set(class_list))
+        ir_class_dut = sorted(set(cfg_IRDUTlist) & set(class_list))
+
+        box_df, box_fig, box_ax = plot_responsive_dut_boxplot_final(
+            pre_TU_gene=pre_TU,
+            post_TU_gene=post_TU,
+            ar_dut_list=ar_class_dut,
+            ir_dut_list=ir_class_dut,
+            sampleinfo=sampleinfo,
+            title=plot_title,
+            order=ARIR_GROUP_ORDER,
+            palette=ARIR_PALETTE,
+            save_path=cfg_output_dir / f"{boxplot_stem}_boxplot.pdf",
+        )
+
+        ridge_df, ridge_fig, ridge_axes = plot_dut_union_mean_tu_ridge(
+            pre_TU_gene=pre_TU,
+            post_TU_gene=post_TU,
+            ar_dut_list=ar_class_dut,
+            ir_dut_list=ir_class_dut,
+            sampleinfo=sampleinfo,
+            order=ARIR_GROUP_ORDER,
+            palette=ARIR_PALETTE,
+            xlabel="Mean TU",
+            save_path=cfg_output_dir / f"{boxplot_stem}_meanTU_ridge.pdf",
+        )
+
+        ir_axis_out = plot_ir_axis_main_figure(
+            pre_TU=pre_TU,
+            post_TU=post_TU,
+            sampleinfo=sampleinfo,
+            class1_list=class_list,
+            ARdutlist=cfg_ARDUTlist,
+            IRdutlist=cfg_IRDUTlist,
+            drop_nan_features=True,
+            ellipse_nsig=2.0,
+            ellipse_use_all_ir=True,
+            title=ir_axis_title,
+            palette=ARIR_PALETTE,
+            save_path=cfg_output_dir / f"{filename_prefix}_ir_axis_main_figure.pdf",
+            projection_save_path=cfg_output_dir / f"{filename_prefix}_projection_to_IR_direction.pdf",
+            projection_figsize=(3.5, 4.5),
+        )
+
+        df_pts_tmp, comp_tmp, ir_like_tmp, moved_tmp = plot_unsupervised_clusters_on_pca(
+            coord_pre=ir_axis_out["coord_pre"],
+            coord_post=ir_axis_out["coord_post"],
+            ar_samples=ar_samples_fig,
+            ir_samples=ir_samples_fig,
+            k=k,
+            draw_cluster_ellipses=True,
+            ellipse_nsig=1.2,
+            palette=ARIR_PALETTE,
+            title=None,
+            save_path=cfg_output_dir / f"{filename_prefix}_pca_kmeans_clusters.pdf",
+        )
+
+        comp_fig, comp_ax, comp_prop = plot_cluster_composition_stacked_vertical(
+            comp_tmp,
+            save_path=cfg_output_dir / f"{filename_prefix}_pca_kmeans_cluster_composition.pdf",
+            cluster_order=cfg.get("cluster_order"),
+            palette=ARIR_PALETTE,
+            title=None,
+        )
+
+        results[key] = {
+            "config": cfg,
+            "feature_label": feature_label,
+            "ar_class_dut": ar_class_dut,
+            "ir_class_dut": ir_class_dut,
+            "boxplot_df": box_df,
+            "boxplot_fig": box_fig,
+            "boxplot_ax": box_ax,
+            "ridge_df": ridge_df,
+            "ridge_fig": ridge_fig,
+            "ridge_axes": ridge_axes,
+            "ir_axis": ir_axis_out,
+            "df_pts": df_pts_tmp,
+            "comp": comp_tmp,
+            "comp_prop": comp_prop,
+            "comp_fig": comp_fig,
+            "comp_ax": comp_ax,
+            "ir_like_cluster": ir_like_tmp,
+            "moved_frac": moved_tmp,
+        }
+
+        print(f"\n{label} k={k}")
+        print(feature_label, "AR DUT:", len(ar_class_dut), "IR DUT:", len(ir_class_dut))
+        print(comp_tmp)
+        print("IR-like cluster:", ir_like_tmp, "AR moved fraction:", moved_tmp)
+
+    return results
+
+
+class_figure_results = run_class_dut_union_figure_set(
+    configs=CLASS_DUT_FIGURE_CONFIGS,
+    pre_TU=pre_TU_gene,
+    post_TU=post_TU_gene,
+    sampleinfo=sampleinfo,
+    ARdutlist=ARdutlist,
+    IRdutlist=IRdutlist,
+    output_dir=FIGURE_OUTPUT_DIR,
+)
+
+class1_figure_results = class_figure_results["class1"]
+class3_figure_results = class_figure_results["class3"]
+
+
+# Direction-aware DUT union figures:
+# class1 uses IR/AR upregulated DUT union, class3 uses IR/AR downregulated DUT union.
+CLASS_DIRECTIONAL_DUT_FIGURE_CONFIGS = [
+    {
+        "key": "class1",
+        "label": "Class 1",
+        "class_list": class1,
+        "k": 3,
+        "ar_dut_list": ARuplist,
+        "ir_dut_list": IRuplist,
+        "feature_label": "IR/AR upregulated DUT union",
+        "filename_prefix": "class1_IRARupregulated_dutunion",
+        "boxplot_tag": None,
+    },
+    {
+        "key": "class3",
+        "label": "Class 3",
+        "class_list": class3,
+        "k": 2,
+        "ar_dut_list": ARdownlist,
+        "ir_dut_list": IRdownlist,
+        "feature_label": "IR/AR downregulated DUT union",
+        "filename_prefix": "class3_IRARdownregulated_dutunion",
+        "boxplot_tag": None,
+    },
+]
+
+directional_class_figure_results = run_class_dut_union_figure_set(
+    configs=CLASS_DIRECTIONAL_DUT_FIGURE_CONFIGS,
+    pre_TU=pre_TU_gene,
+    post_TU=post_TU_gene,
+    sampleinfo=sampleinfo,
+    ARdutlist=ARdutlist,
+    IRdutlist=IRdutlist,
+    output_dir=FIGURE_OUTPUT_DIR,
+)
+
+class1_upregulated_figure_results = directional_class_figure_results["class1"]
+class3_downregulated_figure_results = directional_class_figure_results["class3"]
+
+# Backward-compatible aliases for the downstream exploratory cells.
+out = class1_figure_results["ir_axis"]
+df_pts = class1_figure_results["df_pts"]
+comp = class1_figure_results["comp"]
+ir_like_cluster = class1_figure_results["ir_like_cluster"]
+moved_frac = class1_figure_results["moved_frac"]
+df_long_dut = class1_figure_results["boxplot_df"]
+fig_dut = class1_figure_results["boxplot_fig"]
+ax_dut = class1_figure_results["boxplot_ax"]
 
 
 #%%
@@ -1745,17 +2197,12 @@ from scipy.stats import spearmanr, mannwhitneyu
 import matplotlib.pyplot as plt
 import seaborn as sns
 
-out = plot_ir_axis_main_figure(
-    pre_TU=pre_TU_gene,
-    post_TU=post_TU_gene,
-    sampleinfo=sampleinfo,
-    class1_list=class1,
-    ARdutlist=ARdutlist,
-    IRdutlist=IRdutlist,
-    drop_nan_features=True,   # main figure 추천
-    ellipse_nsig=2.0,         # 1.0이면 cluster 느낌 확
-    ellipse_use_all_ir=True,  # IR_pre+post로 ellipse
-)
+# Reuse the precomputed Class 1 PCA/IR-axis result for interval analyses.
+out = class1_figure_results["ir_axis"]
+df_pts = class1_figure_results["df_pts"]
+comp = class1_figure_results["comp"]
+ir_like_cluster = class1_figure_results["ir_like_cluster"]
+moved_frac = class1_figure_results["moved_frac"]
 
 # AR samples
 ar_samples = sampleinfo[sampleinfo["response"] == 1].index
